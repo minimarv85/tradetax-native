@@ -168,7 +168,7 @@ export default function HomeScreen({ navigation }) {
   const isDark = theme === 'dark';
   const headerBg = isDark ? '#1E293B' : '#FFFFFF';
   const headerText = isDark ? '#7D9B76' : '#5C7A5C';
-  const quickActionBg = isDark ? 'rgba(125, 155, 118, 0.75)' : 'rgba(92, 122, 92, 0.85)';
+  const quickActionBg = isDark ? 'rgba(125, 155, 118, 0.5)' : 'rgba(92, 122, 92, 0.5)';
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FAFAFA' }}>
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   actionText: {
     color: '#FFFFFF',
