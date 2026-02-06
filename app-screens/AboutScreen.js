@@ -3,7 +3,8 @@ import { View, Text, ScrollView, StyleSheet, Linking, TouchableOpacity } from 'r
 import { AuthContext } from '../App';
 
 export default function AboutScreen({ navigation }) {
-  const { colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { colors } = authContext || {};
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

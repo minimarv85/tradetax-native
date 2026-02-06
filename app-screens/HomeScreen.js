@@ -57,7 +57,8 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 };
 
 export default function HomeScreen({ navigation }) {
-  const { session, colors, resetNavigation, toggleTheme, theme } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors, resetNavigation, toggleTheme, theme } = authContext || {};
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [menuVisible, setMenuVisible] = useState(false);

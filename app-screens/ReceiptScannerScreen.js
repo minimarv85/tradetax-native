@@ -5,7 +5,8 @@ import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
 export default function ReceiptScannerScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [photoUri, setPhotoUri] = useState(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');

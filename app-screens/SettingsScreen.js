@@ -74,7 +74,8 @@ const EMPLOYMENT_STATUSES = [
 ];
 
 export default function SettingsScreen({ navigation }) {
-  const { session, colors, resetNavigation } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors, resetNavigation } = authContext || {};
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
   const [taxRegion, setTaxRegion] = useState('england');

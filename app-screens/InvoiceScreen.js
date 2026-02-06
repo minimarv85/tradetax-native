@@ -4,7 +4,8 @@ import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
 export default function InvoiceScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [clientName, setClientName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');

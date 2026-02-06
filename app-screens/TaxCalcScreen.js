@@ -30,7 +30,8 @@ const NIC_RATES = {
 };
 
 export default function TaxCalcScreen() {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [taxRegion, setTaxRegion] = useState('england');
   const [employmentStatus, setEmploymentStatus] = useState('self_employed');
   const [annualSalary, setAnnualSalary] = useState('');

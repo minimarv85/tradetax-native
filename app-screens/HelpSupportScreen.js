@@ -5,7 +5,8 @@ import { clearSession } from '../app-lib/auth';
 
 const FAQItem = ({ question, answer }) => {
   const [expanded, setExpanded] = useState(false);
-  const { colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { colors } = authContext || {};
 
   return (
     <View style={[styles.faqItem, { backgroundColor: colors.card }]}>
@@ -24,7 +25,8 @@ const FAQItem = ({ question, answer }) => {
 };
 
 export default function HelpSupportScreen({ navigation }) {
-  const { colors, resetNavigation } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { colors, resetNavigation } = authContext || {};
 
   const handleContactSupport = () => {
     Alert.alert(

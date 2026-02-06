@@ -11,7 +11,8 @@ const mileageRates = [
 ];
 
 export default function MileageScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [trips, setTrips] = useState([]);
   const [distance, setDistance] = useState('');
   const [purpose, setPurpose] = useState('');

@@ -3,7 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 
 import { AuthContext } from '../App';
 
 export default function VATScreen({ navigation }) {
-  const { colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { colors } = authContext || {};
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState('20');
   const [mode, setMode] = useState('add'); // add or remove

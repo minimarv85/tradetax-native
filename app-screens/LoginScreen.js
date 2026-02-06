@@ -9,7 +9,8 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { colors, resetNavigation } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { colors, resetNavigation } = authContext || {};
 
   // Check for existing session on mount
   useEffect(() => {

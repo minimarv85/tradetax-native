@@ -4,7 +4,8 @@ import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
 export default function ReportsScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [transactions, setTransactions] = useState([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState({ income: {}, expenses: {} });
   const [loading, setLoading] = useState(true);

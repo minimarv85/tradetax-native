@@ -7,7 +7,8 @@ const incomeCategories = ['Client Payment', 'Freelance Work', 'Consulting', 'Pro
 const expenseCategories = ['Equipment', 'Software', 'Travel', 'Office Supplies', 'Marketing', 'Utilities', 'Professional Services', 'Other'];
 
 export default function IncomeScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const { session, colors } = authContext || {};
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
