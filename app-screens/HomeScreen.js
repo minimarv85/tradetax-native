@@ -110,7 +110,7 @@ export default function HomeScreen({ navigation }) {
       .from('transactions')
       .select('*')
       .eq('user_id', session.user.id)
-      .order('date', { ascending: false })
+      .order('date', {ascending: false})
       .limit(10);
 
     if (transactions) {
