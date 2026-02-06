@@ -17,7 +17,6 @@ const EMPLOYMENT_STATUSES = [
 
 const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle }) => {
   const [showModal, setShowModal] = useState(false);
-
   const selectedOption = options.find(opt => opt.value === selectedValue);
 
   return (
@@ -28,7 +27,7 @@ const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle
         onPress={() => setShowModal(true)}
       >
         <Text style={[styles.dropdownText, { color: '#374151' }]}>{selectedOption?.label || 'Select...'}</Text>
-        <Text style={styles.dropdownArrow}>▼</Text>
+        <Text style={styles.dropdownArrow}>â–¼</Text>
       </TouchableOpacity>
 
       <Modal
@@ -56,7 +55,7 @@ const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle
                   ]}>
                     {option.label}
                   </Text>
-                  {option.value === selectedValue && <Text style={styles.checkmark}>✓</Text>}
+                  {option.value === selectedValue && <Text style={styles.checkmark}>âœ“</Text>}
                 </TouchableOpacity>
               ))}
               <TouchableOpacity 
@@ -82,7 +81,6 @@ export default function SignupScreen({ navigation }) {
   const [annualSalary, setAnnualSalary] = useState('');
   const [taxCode, setTaxCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { colors } = useContext(AuthContext);
 
   const handleSignup = async () => {
     if (!email || !password || !name) {
@@ -92,7 +90,6 @@ export default function SignupScreen({ navigation }) {
 
     setLoading(true);
     
-    // Sign up
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -104,7 +101,6 @@ export default function SignupScreen({ navigation }) {
       return;
     }
 
-    // Create profile with tax settings
     if (data.user) {
       const salary = parseFloat(annualSalary) || 0;
       
@@ -202,7 +198,7 @@ export default function SignupScreen({ navigation }) {
 
             {employmentStatus !== 'self_employed' && (
               <>
-                <Text style={[styles.label, { color: '#1F2937' }]}>Annual Salary (£)</Text>
+                <Text style={[styles.label, { color: '#1F2937' }]}>Annual Salary (Â£)</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
                   value={annualSalary}
@@ -248,8 +244,6 @@ export default function SignupScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
-
-import { ScrollView } from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -348,7 +342,6 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 14,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
