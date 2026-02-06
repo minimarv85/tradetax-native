@@ -4,7 +4,6 @@ import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 import { clearSession } from '../app-lib/auth';
 
-// UK Tax Bands 2024/25 (England, Wales, NI)
 const TAX_BANDS_UK = [
   { name: 'Personal Allowance', rate: 0, max: 12570 },
   { name: 'Basic Rate (20%)', rate: 0.2, max: 50270 },
@@ -12,7 +11,6 @@ const TAX_BANDS_UK = [
   { name: 'Additional Rate (45%)', rate: 0.45, max: null },
 ];
 
-// Scottish Tax Bands 2024/25
 const TAX_BANDS_SCOTLAND = [
   { name: 'Starter Rate (19%)', rate: 0.19, max: 14732 },
   { name: 'Scottish Basic (20%)', rate: 0.2, max: 25656 },
@@ -21,7 +19,6 @@ const TAX_BANDS_SCOTLAND = [
   { name: 'Scottish Top (48%)', rate: 0.48, max: null },
 ];
 
-// Calculate UK tax based on region and salary
 const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSalary) => {
   const profit = Math.max(0, income - expenses);
   const taxBands = taxRegion === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
@@ -58,7 +55,12 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 
 export default function HomeScreen({ navigation }) {
   const authContext = useContext(AuthContext);
-  const { session, colors, resetNavigation, toggleTheme, theme } = authContext || {};
+  const session = authContext?.session;
+  const colors = authContext?.colors || {};
+  const resetNavigation = authContext?.resetNavigation;
+  const toggleTheme = authContext?.toggleTheme;
+  const theme = authContext?.theme || 'dark';
+  
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [menuVisible, setMenuVisible] = useState(false);
@@ -143,10 +145,15 @@ export default function HomeScreen({ navigation }) {
         style: 'destructive',
         onPress: async () => {
           await clearSession();
-          resetNavigation('Login');
+          if (resetNavigation) resetNavigation('Login');
         }
       },
     ]);
+  };
+
+  const handleToggleTheme = () => {
+    if (toggleTheme) toggleTheme();
+    setMenuVisible(false);
   };
 
   const menuItems = [
@@ -158,35 +165,33 @@ export default function HomeScreen({ navigation }) {
     { label: 'About', onPress: () => { setMenuVisible(false); navigation.navigate('About'); } },
   ];
 
-  const handleToggleTheme = () => {
-    toggleTheme();
-    setMenuVisible(false);
-  };
+  const isDark = theme === 'dark';
+  const headerBg = isDark ? '#1E293B' : '#FFFFFF';
+  const headerText = isDark ? '#7D9B76' : '#5C7A5C';
+  const quickActionBg = isDark ? 'rgba(125, 155, 118, 0.75)' : 'rgba(92, 122, 92, 0.85)';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header - White with Sage Green text */}
-      <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
+    <View style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FAFAFA' }}>
+      <View style={[styles.header, { backgroundColor: headerBg }]}>
         <TouchableOpacity 
           style={styles.menuButton}
           onPress={() => setMenuVisible(true)}
         >
-          <Text style={[styles.menuIconText, { color: colors.headerText }]}>☰</Text>
+          <Text style={[styles.menuIconText, { color: headerText }]}>☰</Text>
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerLogo, { color: colors.headerText }]}>📊 TradeTax</Text>
+          <Text style={[styles.headerLogo, { color: headerText }]}>📊 TradeTax</Text>
         </View>
         
         <TouchableOpacity 
           style={styles.themeButton}
           onPress={toggleTheme}
         >
-          <Text style={styles.themeIcon}>{theme === 'dark' ? '☀️' : '🌙'}</Text>
+          <Text style={styles.themeIcon}>{isDark ? '☀️' : '🌙'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Side Menu Modal */}
       <Modal
         visible={menuVisible}
         transparent={true}
@@ -195,8 +200,8 @@ export default function HomeScreen({ navigation }) {
       >
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.menuContent, { backgroundColor: colors.card }]}>
-              <View style={[styles.menuHeader, { backgroundColor: colors.primary }]}>
+            <View style={[styles.menuContent, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+              <View style={[styles.menuHeader, { backgroundColor: isDark ? '#7D9B76' : '#5C7A5C' }]}>
                 <Text style={styles.menuWelcome}>Welcome back</Text>
                 <Text style={styles.menuName}>{userName}</Text>
               </View>
@@ -204,20 +209,19 @@ export default function HomeScreen({ navigation }) {
               {menuItems.map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                  style={[styles.menuItem, { borderBottomColor: isDark ? '#334155' : '#E2E8F0' }]}
                   onPress={item.onPress}
                 >
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
+                  <Text style={[styles.menuItemText, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
 
-              {/* Dark/Light Mode Toggle */}
               <TouchableOpacity 
-                style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                style={[styles.menuItem, { borderBottomColor: isDark ? '#334155' : '#E2E8F0' }]}
                 onPress={handleToggleTheme}
               >
-                <Text style={[styles.menuItemText, { color: colors.text }]}>
-                  {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                <Text style={[styles.menuItemText, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
                 </Text>
               </TouchableOpacity>
 
@@ -225,7 +229,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.logoutItem}
                 onPress={handleLogout}
               >
-                <Text style={[styles.logoutText, { color: colors.danger }]}>Sign Out</Text>
+                <Text style={[styles.logoutText, { color: '#EF4444' }]}>Sign Out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -233,122 +237,117 @@ export default function HomeScreen({ navigation }) {
       </Modal>
 
       <ScrollView 
-        style={styles.container}
+        style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FAFAFA' }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} />}
       >
         <View style={styles.content}>
-          {/* Welcome Header */}
           <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeText, { color: colors.text }]}>
+            <Text style={[styles.welcomeText, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
               Hi{userName && userName !== 'User' ? ', ' + userName : ''}
             </Text>
-            <Text style={[styles.subWelcomeText, { color: colors.secondary }]}>
+            <Text style={[styles.subWelcomeText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
               Here's your tax summary
             </Text>
           </View>
 
-          {/* Stats Grid */}
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
-              <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(stats.totalIncome)}</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Total Income</Text>
+              <Text style={[styles.statValue, { color: '#059669' }]}>{formatCurrency(stats.totalIncome)}</Text>
             </View>
             
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.statLabel, { color: colors.secondary }]}>Expenses</Text>
-              <Text style={[styles.statValue, { color: colors.danger }]}>{formatCurrency(stats.totalExpenses)}</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Expenses</Text>
+              <Text style={[styles.statValue, { color: '#DC2626' }]}>{formatCurrency(stats.totalExpenses)}</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.statLabel, { color: colors.secondary }]}>Net Profit</Text>
-              <Text style={[styles.statValue, { color: colors.netProfit }]}>{formatCurrency(stats.netProfit)}</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Net Profit</Text>
+              <Text style={[styles.statValue, { color: '#60A5FA' }]}>{formatCurrency(stats.netProfit)}</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
-              <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Est. Tax</Text>
+              <Text style={[styles.statValue, { color: '#FACC15' }]}>{formatCurrency(stats.estimatedTax)}</Text>
             </View>
           </View>
 
-          {/* Quick Actions - Apple Glass Effect */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>Quick Actions</Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Income')}
             >
               <Text style={styles.actionText}>+ Income</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Expenses')}
             >
               <Text style={styles.actionText}>+ Expense</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Receipt')}
             >
               <Text style={styles.actionText}>Take Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Invoice')}
             >
               <Text style={styles.actionText}>Invoice</Text>
             </TouchableOpacity>
           </View>
 
-          {/* More Features */}
           <View style={styles.actionGrid}>
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('VAT')}
             >
               <Text style={styles.actionText}>VAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Mileage')}
             >
               <Text style={styles.actionText}>Mileage</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('TaxCalc')}
             >
               <Text style={styles.actionText}>Tax Calc</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
+              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Reports')}
             >
               <Text style={styles.actionText}>Reports</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Recent Transactions */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>Recent Transactions</Text>
           {recentTransactions.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet</Text>
+            <Text style={[styles.emptyText, { color: isDark ? '#94A3B8' : '#64748B' }]}>No transactions yet</Text>
           ) : (
             recentTransactions.map((item) => (
-              <View key={item.id} style={[styles.transactionCard, { backgroundColor: colors.card }]}>
+              <View key={item.id} style={[styles.transactionCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
                 <View style={styles.transactionInfo}>
-                  <Text style={[styles.transactionDesc, { color: colors.text }]}>{item.description}</Text>
-                  <Text style={[styles.transactionDate, { color: colors.secondary }]}>
+                  <Text style={[styles.transactionDesc, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>{item.description}</Text>
+                  <Text style={[styles.transactionDate, { color: isDark ? '#94A3B8' : '#64748B' }]}>
                     {new Date(item.date).toLocaleDateString('en-GB')}
                   </Text>
                 </View>
                 <Text style={[
                   styles.transactionAmount,
-                  { color: item.type === 'income' ? colors.success : colors.danger }
+                  { color: item.type === 'income' ? '#059669' : '#DC2626' }
                 ]}>
                   {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
                 </Text>
@@ -440,9 +439,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  container: {
-    flex: 1,
-  },
   content: {
     padding: 16,
     paddingTop: 0,
@@ -500,8 +496,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 12,
-    // Semi-transparent glass effect
-    backgroundColor: colors.quickAction,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
