@@ -1,13 +1,41 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../app-lib/supabase';
 import { AuthContext } from '../App';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const { colors } = useContext(AuthContext);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    const refreshToken = await SecureStore.getItemAsync('refreshToken');
+    if (refreshToken) {
+      // Try to restore session
+      const { data, error } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+      
+      if (!error && data.session) {
+        // Session restored - navigate to home
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        // Token expired or invalid - clear it
+        await SecureStore.deleteItemAsync('refreshToken');
+      }
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -16,14 +44,23 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
       Alert.alert('Login Failed', error.message);
+      setLoading(false);
+      return;
     }
+
+    // If Remember Me is ON, store refresh token securely
+    if (rememberMe && data.session?.refresh_token) {
+      await SecureStore.setItemAsync('refreshToken', data.session.refresh_token);
+      await SecureStore.setItemAsync('rememberMe', 'true');
+    }
+
     setLoading(false);
   };
 
@@ -58,6 +95,24 @@ export default function LoginScreen({ navigation }) {
             secureTextEntry
           />
 
+          {/* Remember Me Toggle */}
+          <View style={styles.rememberMeContainer}>
+            <View style={styles.switchContainer}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                trackColor={{ false: '#767577', true: '#4CAF50' }}
+                thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
+              />
+              <Text style={[styles.rememberMeText, { color: colors.text }]}>
+                Remember Me
+              </Text>
+            </View>
+            <Text style={[styles.rememberMeSubtext, { color: colors.secondary }]}>
+              Stays logged in securely
+            </Text>
+          </View>
+
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: colors.primary }]}
             onPress={handleLogin}
@@ -76,6 +131,14 @@ export default function LoginScreen({ navigation }) {
               Don't have an account? Sign Up
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Security Info */}
+        <View style={styles.securityInfo}>
+          <Text style={[styles.securityIcon, { color: colors.primary }]}>🔒</Text>
+          <Text style={[styles.securityText, { color: colors.secondary }]}>
+            Bank-grade security. Tokens encrypted in device secure storage.
+          </Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -123,6 +186,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
   },
+  rememberMeContainer: {
+    flexDirection: 'column',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 8,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rememberMeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  rememberMeSubtext: {
+    fontSize: 12,
+    marginLeft: 44,
+    marginTop: 2,
+  },
   button: {
     borderRadius: 8,
     padding: 16,
@@ -140,5 +224,20 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
+  },
+  securityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  securityIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  securityText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, TouchableWithoutFeedback, Modal } from 'react-native';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
+import { clearSession } from '../app-lib/auth';
 
 const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle }) => {
   const [showModal, setShowModal] = useState(false);
@@ -129,6 +130,28 @@ export default function SettingsScreen({ navigation }) {
     setLoading(false);
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await clearSession(); // Clear secure tokens
+            // Navigate to login
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          }
+        },
+      ]
+    );
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       {/* Header */}
@@ -210,6 +233,13 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Account</Text>
           <Text style={[styles.label, { color: '#6B7280' }]}>Email</Text>
           <Text style={[styles.value, { color: '#1F2937' }]}>{session?.user?.email}</Text>
+          
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}
+            onPress={handleLogout}
+          >
+            <Text style={[styles.logoutButtonText, { color: '#EF4444' }]}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
         {/* App Info */}
@@ -365,6 +395,20 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Logout button
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 16,
+  },
+  logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
