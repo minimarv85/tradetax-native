@@ -184,12 +184,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={[styles.headerLogo, { color: headerText }]}>📊 TradeTax</Text>
         </View>
         
-        <TouchableOpacity 
-          style={styles.themeButton}
-          onPress={toggleTheme}
-        >
-          <Text style={styles.themeIcon}>{isDark ? '☀️' : '🌙'}</Text>
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </View>
 
       <Modal
