@@ -36,10 +36,10 @@ const lightTheme = {
   success: '#059669',
   danger: '#DC2626',
   border: '#E2E8F0',
-  quickAction: '#6B8E6B',
+  quickAction: 'rgba(92, 122, 92, 0.85)',
   headerBackground: '#FFFFFF',
   headerText: '#5C7A5C',
-  netProfit: '#1E3A5F',
+  netProfit: '#60A5FA',
 };
 
 const darkTheme = {
@@ -52,7 +52,7 @@ const darkTheme = {
   success: '#10B981',
   danger: '#EF4444',
   border: '#334155',
-  quickAction: 'rgba(123, 155, 118, 0.85)',
+  quickAction: 'rgba(125, 155, 118, 0.75)',
   headerBackground: '#1E293B',
   headerText: '#7D9B76',
   netProfit: '#60A5FA',

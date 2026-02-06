@@ -57,7 +57,7 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 };
 
 export default function HomeScreen({ navigation }) {
-  const { session, colors, resetNavigation } = useContext(AuthContext);
+  const { session, colors, resetNavigation, toggleTheme, theme } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [menuVisible, setMenuVisible] = useState(false);
@@ -157,6 +157,11 @@ export default function HomeScreen({ navigation }) {
     { label: 'About', onPress: () => { setMenuVisible(false); navigation.navigate('About'); } },
   ];
 
+  const handleToggleTheme = () => {
+    toggleTheme();
+    setMenuVisible(false);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header - White with Sage Green text */}
@@ -172,7 +177,12 @@ export default function HomeScreen({ navigation }) {
           <Text style={[styles.headerLogo, { color: colors.headerText }]}>📊 TradeTax</Text>
         </View>
         
-        <View style={styles.placeholder} />
+        <TouchableOpacity 
+          style={styles.themeButton}
+          onPress={toggleTheme}
+        >
+          <Text style={styles.themeIcon}>{theme === 'dark' ? '☀️' : '🌙'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Side Menu Modal */}
@@ -199,6 +209,16 @@ export default function HomeScreen({ navigation }) {
                   <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
+
+              {/* Dark/Light Mode Toggle */}
+              <TouchableOpacity 
+                style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                onPress={handleToggleTheme}
+              >
+                <Text style={[styles.menuItemText, { color: colors.text }]}>
+                  {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.logoutItem}
@@ -363,8 +383,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+  themeButton: {
+    padding: 12,
+    width: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeIcon: {
+    fontSize: 28,
+  },
   placeholder: {
-    width: 96,
+    width: 40,
   },
   modalOverlay: {
     flex: 1,
@@ -470,14 +499,15 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 12,
-    // Apple Glass Effect
+    // Semi-transparent glass effect
+    backgroundColor: colors.quickAction,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   actionText: {
     color: '#FFFFFF',

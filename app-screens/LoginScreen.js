@@ -136,7 +136,7 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.securityInfo}>
           <Text style={[styles.securityIcon, { color: colors.primary }]}>🔒</Text>
           <Text style={[styles.securityText, { color: colors.secondary }]}>
-            Bank-grade security. Tokens encrypted in device secure storage.
+            End-to-end encryption with secure enclave storage.
           </Text>
         </View>
       </View>
