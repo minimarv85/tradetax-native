@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext, useRef, TouchableWithoutFeedback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Modal } from 'react-native';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
@@ -80,61 +80,72 @@ export default function HomeScreen({ navigation }) {
 
     setLoading(true);
     
-    // Get user profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, tax_region, employment_status, annual_salary')
-      .eq('id', session.user.id)
-      .single();
-    
-    // Set user name from full_name or email - prioritize full_name
-    let name = 'User';
-    if (profile?.full_name && profile.full_name.trim() !== '') {
-      name = profile.full_name.split(' ')[0];
-    } else if (session?.user?.email) {
-      name = session.user.email.split('@')[0];
-    }
-    setUserName(name);
-    
-    // Store user settings
-    if (profile) {
-      setUserSettings({
-        taxRegion: profile.tax_region || 'england',
-        employmentStatus: profile.employment_status || 'self_employed',
-        annualSalary: profile.annual_salary || 0,
-      });
-    }
-    
-    // Get transactions
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('date', {ascending: false})
-      .limit(10);
+    try {
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, tax_region, employment_status, annual_salary')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profileError) {
+        console.log('Profile error:', profileError);
+      }
+      
+      // Set user name from full_name or email - prioritize full_name
+      let name = 'User';
+      if (profile?.full_name && profile.full_name.trim() !== '') {
+        name = profile.full_name.split(' ')[0];
+      } else if (session?.user?.email) {
+        name = session.user.email.split('@')[0];
+      }
+      setUserName(name);
+      
+      // Store user settings
+      if (profile) {
+        setUserSettings({
+          taxRegion: profile.tax_region || 'england',
+          employmentStatus: profile.employment_status || 'self_employed',
+          annualSalary: profile.annual_salary || 0,
+        });
+      }
+      
+      // Get transactions
+      const { data: transactions, error: transError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('date', {ascending: false})
+        .limit(10);
 
-    if (transactions) {
-      let income = 0, expenses = 0;
-      transactions.forEach(t => {
-        if (t.type === 'income') income += parseFloat(t.amount);
-        else expenses += parseFloat(t.amount);
-      });
-      
-      const { profit, tax } = calculateUKTax(
-        income, 
-        expenses, 
-        profile?.tax_region || 'england',
-        profile?.employment_status || 'self_employed',
-        profile?.annual_salary || 0
-      );
-      
-      setStats({
-        totalIncome: income,
-        totalExpenses: expenses,
-        netProfit: profit,
-        estimatedTax: tax,
-      });
-      setRecentTransactions(transactions);
+      if (transError) {
+        console.log('Transactions error:', transError);
+        setRecentTransactions([]);
+      } else if (transactions) {
+        let income = 0, expenses = 0;
+        transactions.forEach(t => {
+          if (t.type === 'income') income += parseFloat(t.amount);
+          else expenses += parseFloat(t.amount);
+        });
+        
+        const { profit, tax } = calculateUKTax(
+          income, 
+          expenses, 
+          profile?.tax_region || 'england',
+          profile?.employment_status || 'self_employed',
+          profile?.annual_salary || 0
+        );
+        
+        setStats({
+          totalIncome: income,
+          totalExpenses: expenses,
+          netProfit: profit,
+          estimatedTax: tax,
+        });
+        setRecentTransactions(transactions);
+      }
+    } catch (err) {
+      console.log('Fetch data error:', err);
     }
 
     setLoading(false);
@@ -220,7 +231,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.content}>
           {/* Welcome Header */}
           <View style={[styles.welcomeCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.welcomeText}>Welcome Back{userName ? ', ' + userName : ''}!</Text>
+            <Text style={styles.welcomeText}>Welcome Back{userName && userName !== 'User' ? ', ' + userName : ''}!</Text>
             <Text style={styles.subWelcomeText}>Here's your tax summary</Text>
           </View>
 
@@ -345,7 +356,6 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   header: {
