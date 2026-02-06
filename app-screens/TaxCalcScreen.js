@@ -3,18 +3,45 @@ import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert,
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
-// UK Tax Bands 2024/25
-const TAX_BANDS = [
+// UK Tax Bands 2024/25 (England, Wales, NI)
+const TAX_BANDS_UK = [
   { name: 'Personal Allowance', rate: 0, max: 12570 },
   { name: 'Basic Rate (20%)', rate: 0.2, max: 50270 },
   { name: 'Higher Rate (40%)', rate: 0.4, max: 125140 },
   { name: 'Additional Rate (45%)', rate: 0.45, max: null },
 ];
 
+// Scottish Tax Bands 2024/25
+const TAX_BANDS_SCOTLAND = [
+  { name: 'Starter Rate (19%)', rate: 0.19, max: 14732 },
+  { name: 'Scottish Basic (20%)', rate: 0.2, max: 25656 },
+  { name: 'Scottish Intermediate (21%)', rate: 0.21, max: 43662 },
+  { name: 'Scottish Higher (42%)', rate: 0.42, max: 125140 },
+  { name: 'Scottish Top (48%)', rate: 0.48, max: null },
+];
+
 // UK National Insurance 2024/25
 const NIC_RATES = {
   class2: { rate: 3.45, threshold: 6725 }, // £3.45/week if profit over £6,725
   class4: { lowerRate: 0.09, lowerThreshold: 12570, upperThreshold: 50270, upperRate: 0.02 },
+};
+
+// Get current tax year
+const getCurrentTaxYear = () => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  
+  // UK tax year: April 6th to April 5th
+  if (now.getMonth() > 3 || (now.getMonth() === 3 && now.getDate() >= 6)) {
+    return { start: currentYear, end: currentYear + 1 };
+  } else {
+    return { start: currentYear - 1, end: currentYear };
+  }
+};
+
+// Get tax bands based on region
+const getTaxBands = (region) => {
+  return region === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
 };
 
 export default function TaxCalcScreen({ navigation }) {
@@ -28,6 +55,15 @@ export default function TaxCalcScreen({ navigation }) {
   const [totalNic, setTotalNic] = useState(0);
   const [afterTaxProfit, setAfterTaxProfit] = useState(0);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [taxYear, setTaxYear] = useState(getCurrentTaxYear());
+  
+  // User profile settings
+  const [userSettings, setUserSettings] = useState({
+    taxRegion: 'england',
+    employmentStatus: 'self_employed',
+    annualSalary: 0,
+    taxCode: '',
+  });
 
   // Calculate tax and NIC based on current inputs
   const calculateTaxAndNic = useCallback(() => {
@@ -37,28 +73,45 @@ export default function TaxCalcScreen({ navigation }) {
     
     setProfit(yearlyProfit);
 
-    // Calculate income tax by bands (UK tax system)
+    const taxBands = getTaxBands(userSettings.taxRegion);
     let remainingProfit = yearlyProfit;
     let totalTax = 0;
     let taxBreakdownArr = [];
     let previousMax = 0;
 
-    TAX_BANDS.forEach((band) => {
+    // Calculate personal allowance based on employment
+    let personalAllowance = 12570;
+    if (userSettings.employmentStatus === 'employed_self' || userSettings.employmentStatus === 'employed') {
+      // Reduce personal allowance by salary (simplified)
+      personalAllowance = Math.max(0, 12570 - (userSettings.annualSalary * 0.1));
+    }
+
+    // Calculate income tax by bands
+    taxBands.forEach((band) => {
       if (remainingProfit <= 0) return;
       
+      const bandStart = previousMax;
       const bandWidth = band.max ? (band.max - previousMax) : Infinity;
       const taxableInBand = Math.min(remainingProfit, bandWidth);
       
-      if (taxableInBand > 0) {
-        const tax = taxableInBand * band.rate;
+      // Adjust first band for personal allowance
+      let taxableAmount = taxableInBand;
+      if (band.rate === 0 && personalAllowance > 0) {
+        taxableAmount = Math.min(taxableInBand, personalAllowance);
+        // Reduce remaining profit by personal allowance used
+        remainingProfit = Math.max(0, remainingProfit - personalAllowance);
+      }
+      
+      if (taxableAmount > 0) {
+        const tax = taxableAmount * band.rate;
         totalTax += tax;
         taxBreakdownArr.push({
           name: band.name,
           rate: band.rate * 100,
-          amount: taxableInBand,
+          amount: taxableAmount,
           tax: tax,
         });
-        remainingProfit -= taxableInBand;
+        remainingProfit -= taxableAmount;
         previousMax = band.max || bandWidth + previousMax;
       }
     });
@@ -72,7 +125,7 @@ export default function TaxCalcScreen({ navigation }) {
 
     // Class 2 NIC: £3.45/week if profit over £6,725
     if (yearlyProfit >= NIC_RATES.class2.threshold) {
-      const class2Amount = NIC_RATES.class2.rate * 52; // 52 weeks
+      const class2Amount = NIC_RATES.class2.rate * 52;
       totalNicAmount += class2Amount;
       nicBreakdownArr.push({
         name: 'Class 2 NIC',
@@ -106,24 +159,17 @@ export default function TaxCalcScreen({ navigation }) {
     setNicBreakdown(nicBreakdownArr);
     setTotalNic(totalNicAmount);
     setAfterTaxProfit(yearlyProfit - totalTax - totalNicAmount);
-  }, [totalIncome, totalExpenses]);
+  }, [totalIncome, totalExpenses, userSettings]);
 
   // Fetch real data from Supabase
   const fetchYearData = async () => {
     if (!session?.user?.id || dataLoaded) return;
 
-    // Get current tax year (UK tax year: April 6th to April 5th)
-    const now = new Date();
-    let startYear = now.getFullYear();
-    
-    // If before April 6th, use previous tax year
-    if (now.getMonth() < 3 || (now.getMonth() === 3 && now.getDate() < 6)) {
-      startYear -= 1;
-    }
-    
-    const startDate = `${startYear}-04-06`;
-    const endDate = `${startYear + 1}-04-05`;
+    const { start, end } = taxYear;
+    const startDate = `${start}-04-06`;
+    const endDate = `${end}-04-05`;
 
+    // Fetch transactions
     const { data: transactions } = await supabase
       .from('transactions')
       .select('amount, type')
@@ -140,8 +186,25 @@ export default function TaxCalcScreen({ navigation }) {
       
       setTotalIncome(income.toFixed(2));
       setTotalExpenses(expenses.toFixed(2));
-      setDataLoaded(true);
     }
+
+    // Fetch user settings
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tax_region, employment_status, annual_salary, tax_code')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profile) {
+      setUserSettings({
+        taxRegion: profile.tax_region || 'england',
+        employmentStatus: profile.employment_status || 'self_employed',
+        annualSalary: profile.annual_salary || 0,
+        taxCode: profile.tax_code || '',
+      });
+    }
+
+    setDataLoaded(true);
   };
 
   // Calculate when inputs change
@@ -149,32 +212,48 @@ export default function TaxCalcScreen({ navigation }) {
     calculateTaxAndNic();
   }, [calculateTaxAndNic]);
 
-  // Fetch data on mount and screen focus
+  // Fetch data on mount
   useEffect(() => {
     if (session?.user?.id && !dataLoaded) {
+      setTaxYear(getCurrentTaxYear());
       fetchYearData();
     }
-  }, [session, dataLoaded]);
-
-  // Refresh when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (session?.user?.id && !dataLoaded) {
-        fetchYearData();
-      }
-    });
-    return unsubscribe;
   }, [session, dataLoaded]);
 
   const formatCurrency = (amount) => {
     return '£' + parseFloat(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
+  const getRegionName = (region) => {
+    const names = {
+      england: 'England & NI',
+      scotland: 'Scotland',
+      wales: 'Wales',
+    };
+    return names[region] || region;
+  };
+
+  const getEmploymentName = (status) => {
+    const names = {
+      self_employed: 'Self-employed only',
+      employed_self: 'Employed + Self-employed',
+      employed: 'Full-time employed',
+    };
+    return names[status] || status;
+  };
+
   const generateReport = () => {
+    const region = getRegionName(userSettings.taxRegion);
+    const employment = getEmploymentName(userSettings.employmentStatus);
+    
     const report = `
 ═══════════════════════════════
-     UK TAX SUMMARY 2024/25
+   UK TAX SUMMARY ${taxYear.start}/${taxYear.end.toString().slice(-2)}
 ═══════════════════════════════
+
+📍 Region: ${region}
+💼 Status: ${employment}
+${userSettings.annualSalary > 0 ? `💷 Salary: ${formatCurrency(userSettings.annualSalary)}` : ''}
 
 📊 INCOME & EXPENSES
    Total Income:        ${formatCurrency(totalIncome)}
@@ -208,7 +287,7 @@ ${nicBreakdown.map(n => `   ${n.name}:      ${formatCurrency(n.amount)}`).join('
     try {
       await Share.share({
         message: report,
-        title: 'Tax Summary 2024/25',
+        title: `Tax Summary ${taxYear.start}/${taxYear.end.toString().slice(-2)}`,
       });
     } catch (error) {
       Alert.alert('Success', 'Tax summary ready to share!');
@@ -220,13 +299,37 @@ ${nicBreakdown.map(n => `   ${n.name}:      ${formatCurrency(n.amount)}`).join('
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>UK Tax Calculator</Text>
 
+        {/* Current Tax Year */}
+        <View style={[styles.yearBadge, { backgroundColor: colors.primary }]}>
+          <Text style={styles.yearBadgeText}>Tax Year {taxYear.start}/{taxYear.end.toString().slice(-2)}</Text>
+        </View>
+
+        {/* User Settings Display */}
+        <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.settingsTitle, { color: colors.text }]}>Your Settings</Text>
+          <View style={styles.settingsRow}>
+            <Text style={[styles.settingsLabel, { color: colors.secondary }]}>Region</Text>
+            <Text style={[styles.settingsValue, { color: colors.text }]}>{getRegionName(userSettings.taxRegion)}</Text>
+          </View>
+          <View style={styles.settingsRow}>
+            <Text style={[styles.settingsLabel, { color: colors.secondary }]}>Status</Text>
+            <Text style={[styles.settingsValue, { color: colors.text }]}>{getEmploymentName(userSettings.employmentStatus)}</Text>
+          </View>
+          {userSettings.annualSalary > 0 && (
+            <View style={styles.settingsRow}>
+              <Text style={[styles.settingsLabel, { color: colors.secondary }]}>Salary</Text>
+              <Text style={[styles.settingsValue, { color: colors.text }]}>{formatCurrency(userSettings.annualSalary)}</Text>
+            </View>
+          )}
+        </View>
+
         {/* Income/Expenses Inputs (Read Only) */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Your Numbers</Text>
           
           <Text style={[styles.label, { color: colors.text }]}>Total Income (£)</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: '#E5E7EB', color: '#374151', borderColor: colors.border }]}
+            style={[styles.input, { backgroundColor: '#E5E7EB', color: '#374151' }]}
             value={totalIncome}
             editable={false}
             pointerEvents="none"
@@ -234,7 +337,7 @@ ${nicBreakdown.map(n => `   ${n.name}:      ${formatCurrency(n.amount)}`).join('
 
           <Text style={[styles.label, { color: colors.text }]}>Total Expenses (£)</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: '#E5E7EB', color: '#374151', borderColor: colors.border }]}
+            style={[styles.input, { backgroundColor: '#E5E7EB', color: '#374151' }]}
             value={totalExpenses}
             editable={false}
             pointerEvents="none"
@@ -308,37 +411,24 @@ ${nicBreakdown.map(n => `   ${n.name}:      ${formatCurrency(n.amount)}`).join('
 
         {/* Tax Bands Info */}
         <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.infoTitle, { color: colors.text }]}>💡 UK Tax & NI 2024/25</Text>
+          <Text style={[styles.infoTitle, { color: colors.text }]}>
+            💡 {userSettings.taxRegion === 'scotland' ? 'Scottish' : 'UK'} Tax & NI {taxYear.start}/{taxYear.end.toString().slice(-2)}
+          </Text>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>Income Tax Bands</Text>
+            <Text style={[styles.infoBand, { color: colors.secondary }]}>
+              {userSettings.taxRegion === 'scotland' ? 'Starter 19%, Basic 20%, Intermediate 21%' : '0% - £12,570'}
+            </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>0% - £12,570</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>Personal Allowance</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>20% - £50,270</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>Basic Rate</Text>
+            <Text style={[styles.infoBand, { color: colors.secondary }]}>
+              {userSettings.taxRegion === 'scotland' ? 'Higher 42%, Top 48%' : '20% - £50,270'}
+            </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoBand, { color: colors.secondary }]}>40% - £125,140</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>Higher Rate</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>45% +</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>Additional Rate</Text>
-          </View>
-          <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>National Insurance</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>Class 2</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>£3.45/week if profit > £6,725</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoBand, { color: colors.secondary }]}>Class 4</Text>
-            <Text style={[styles.infoRate, { color: colors.secondary }]}>9% + 2% on profits</Text>
+            <Text style={[styles.infoBand, { color: colors.secondary }]}>45%+</Text>
           </View>
         </View>
 
@@ -350,7 +440,14 @@ ${nicBreakdown.map(n => `   ${n.name}:      ${formatCurrency(n.amount)}`).join('
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 16, color: '#1F2937' },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8, color: '#1F2937' },
+  yearBadge: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12 },
+  yearBadgeText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },
+  settingsCard: { borderRadius: 12, padding: 16, marginBottom: 12 },
+  settingsTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: '#1F2937' },
+  settingsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  settingsLabel: { fontSize: 14 },
+  settingsValue: { fontSize: 14, fontWeight: '600' },
   card: { borderRadius: 12, padding: 16, marginBottom: 12 },
   cardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12, color: '#1F2937' },
   label: { fontSize: 18, fontWeight: '600', marginBottom: 8, color: '#1F2937' },
@@ -384,5 +481,4 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   infoBand: { fontSize: 14 },
   infoRate: { fontSize: 14, fontWeight: '600' },
-  infoDivider: { height: 1, marginVertical: 12 },
 });

@@ -3,30 +3,57 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, A
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
-// UK Tax Bands 2024/25
-const TAX_BANDS = [
+// UK Tax Bands 2024/25 (England, Wales, NI)
+const TAX_BANDS_UK = [
   { name: 'Personal Allowance', rate: 0, max: 12570 },
   { name: 'Basic Rate (20%)', rate: 0.2, max: 50270 },
   { name: 'Higher Rate (40%)', rate: 0.4, max: 125140 },
   { name: 'Additional Rate (45%)', rate: 0.45, max: null },
 ];
 
-// Calculate UK tax
-const calculateUKTax = (income, expenses) => {
+// Scottish Tax Bands 2024/25
+const TAX_BANDS_SCOTLAND = [
+  { name: 'Starter Rate (19%)', rate: 0.19, max: 14732 },
+  { name: 'Scottish Basic (20%)', rate: 0.2, max: 25656 },
+  { name: 'Scottish Intermediate (21%)', rate: 0.21, max: 43662 },
+  { name: 'Scottish Higher (42%)', rate: 0.42, max: 125140 },
+  { name: 'Scottish Top (48%)', rate: 0.48, max: null },
+];
+
+// Calculate UK tax based on region and salary
+const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSalary) => {
   const profit = Math.max(0, income - expenses);
+  
+  // Select tax bands based on region
+  const taxBands = taxRegion === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
+  
+  // Calculate personal allowance based on employment
+  let personalAllowance = 12570;
+  if (employmentStatus === 'employed_self' || employmentStatus === 'employed') {
+    // Reduce personal allowance by salary (simplified)
+    personalAllowance = Math.max(0, 12570 - (annualSalary * 0.1));
+  }
+  
   let remainingProfit = profit;
   let totalTax = 0;
   let previousMax = 0;
 
-  TAX_BANDS.forEach((band) => {
+  taxBands.forEach((band) => {
     if (remainingProfit <= 0) return;
     
     const bandWidth = band.max ? (band.max - previousMax) : Infinity;
     const taxableInBand = Math.min(remainingProfit, bandWidth);
     
-    if (taxableInBand > 0) {
-      totalTax += taxableInBand * band.rate;
-      remainingProfit -= taxableInBand;
+    // Adjust for personal allowance on 0% band
+    let taxableAmount = taxableInBand;
+    if (band.rate === 0 && personalAllowance > 0) {
+      taxableAmount = Math.min(taxableInBand, personalAllowance);
+      remainingProfit = Math.max(0, remainingProfit - personalAllowance);
+    }
+    
+    if (taxableAmount > 0) {
+      totalTax += taxableAmount * band.rate;
+      remainingProfit -= taxableAmount;
       previousMax = band.max || bandWidth + previousMax;
     }
   });
@@ -38,6 +65,11 @@ export default function HomeScreen({ navigation }) {
   const { session, colors, toggleTheme } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
+  const [userSettings, setUserSettings] = useState({
+    taxRegion: 'england',
+    employmentStatus: 'self_employed',
+    annualSalary: 0,
+  });
   const [stats, setStats] = useState({
     totalIncome: 0,
     totalExpenses: 0,
@@ -54,7 +86,7 @@ export default function HomeScreen({ navigation }) {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, tax_region, employment_status, annual_salary')
       .eq('id', session.user.id)
       .single();
     
@@ -62,6 +94,15 @@ export default function HomeScreen({ navigation }) {
       setUserName(profile.full_name.split(' ')[0]);
     } else if (session?.user?.email) {
       setUserName(session.user.email.split('@')[0]);
+    }
+    
+    // Store user settings
+    if (profile) {
+      setUserSettings({
+        taxRegion: profile.tax_region || 'england',
+        employmentStatus: profile.employment_status || 'self_employed',
+        annualSalary: profile.annual_salary || 0,
+      });
     }
     
     // Get transactions
@@ -79,8 +120,14 @@ export default function HomeScreen({ navigation }) {
         else expenses += parseFloat(t.amount);
       });
       
-      // Calculate proper UK tax
-      const { profit, tax } = calculateUKTax(income, expenses);
+      // Calculate proper UK tax with user settings
+      const { profit, tax } = calculateUKTax(
+        income, 
+        expenses, 
+        profile?.tax_region || 'england',
+        profile?.employment_status || 'self_employed',
+        profile?.annual_salary || 0
+      );
       
       setStats({
         totalIncome: income,

@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Picker } from 'react-native';
 import { supabase } from '../app-lib/supabase';
 import { AuthContext } from '../App';
 
@@ -7,12 +7,16 @@ export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [taxRegion, setTaxRegion] = useState('england');
+  const [employmentStatus, setEmploymentStatus] = useState('self_employed');
+  const [annualSalary, setAnnualSalary] = useState('');
+  const [taxCode, setTaxCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { colors } = useContext(AuthContext);
 
   const handleSignup = async () => {
     if (!email || !password || !name) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -30,14 +34,20 @@ export default function SignupScreen({ navigation }) {
       return;
     }
 
-    // Create profile
+    // Create profile with tax settings
     if (data.user) {
+      const salary = parseFloat(annualSalary) || 0;
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([{ 
           id: data.user.id, 
           email: email,
           full_name: name,
+          tax_region: taxRegion,
+          employment_status: employmentStatus,
+          annual_salary: salary,
+          tax_code: taxCode || null,
           created_at: new Date().toISOString()
         }]);
 
@@ -65,7 +75,7 @@ export default function SignupScreen({ navigation }) {
         <Text style={[styles.subtitle, { color: colors.secondary }]}>Join TradeTax today</Text>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.label, { color: colors.text }]}>Full Name</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Full Name *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
             value={name}
@@ -74,7 +84,7 @@ export default function SignupScreen({ navigation }) {
             placeholderTextColor={colors.secondary}
           />
 
-          <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Email *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
             value={email}
@@ -85,7 +95,7 @@ export default function SignupScreen({ navigation }) {
             autoCapitalize="none"
           />
 
-          <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Password *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
             value={password}
@@ -94,6 +104,64 @@ export default function SignupScreen({ navigation }) {
             placeholderTextColor={colors.secondary}
             secureTextEntry
           />
+
+          <View style={styles.divider} />
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tax Information</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Tax Region</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Picker
+              selectedValue={taxRegion}
+              onValueChange={(itemValue) => setTaxRegion(itemValue)}
+              style={{ flex: 1, color: colors.text }}
+            >
+              <Picker.Item label="England & Northern Ireland" value="england" />
+              <Picker.Item label="Scotland" value="scotland" />
+              <Picker.Item label="Wales" value="wales" />
+            </Picker>
+          </View>
+
+          <Text style={[styles.infoText, { color: colors.secondary }]}>
+            Scotland has different income tax bands
+          </Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Employment Status</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Picker
+              selectedValue={employmentStatus}
+              onValueChange={(itemValue) => setEmploymentStatus(itemValue)}
+              style={{ flex: 1, color: colors.text }}
+            >
+              <Picker.Item label="Self-employed only" value="self_employed" />
+              <Picker.Item label="Employed + Self-employed" value="employed_self" />
+              <Picker.Item label="Full-time employed only" value="employed" />
+            </Picker>
+          </View>
+
+          {employmentStatus !== 'self_employed' && (
+            <>
+              <Text style={[styles.label, { color: colors.text }]}>Annual Salary (£)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                value={annualSalary}
+                onChangeText={setAnnualSalary}
+                placeholder="0.00"
+                placeholderTextColor={colors.secondary}
+                keyboardType="decimal-pad"
+              />
+
+              <Text style={[styles.label, { color: colors.text }]}>Tax Code (optional)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                value={taxCode}
+                onChangeText={setTaxCode}
+                placeholder="e.g., 1257L"
+                placeholderTextColor={colors.secondary}
+                autoCapitalize="characters"
+              />
+            </>
+          )}
 
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: colors.primary }]}
@@ -152,19 +220,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+    marginTop: 8,
   },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
   button: {
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
   },
   buttonText: {
     color: '#FFFFFF',
