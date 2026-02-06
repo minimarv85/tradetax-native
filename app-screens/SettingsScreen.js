@@ -108,6 +108,7 @@ export default function SettingsScreen({ navigation }) {
 
     const updates = {
       id: session.user.id,
+      email: session.user.email,
       full_name: fullName,
       tax_region: taxRegion,
       employment_status: employmentStatus,
