@@ -159,15 +159,19 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      {/* Header - White with Sage Green text */}
+      <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
         <TouchableOpacity 
           style={styles.menuButton}
           onPress={() => setMenuVisible(true)}
         >
-          <Text style={styles.menuIconText}>☰</Text>
+          <Text style={[styles.menuIconText, { color: colors.headerText }]}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>TradeTax</Text>
+        
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerLogo, { color: colors.headerText }]}>📊 TradeTax</Text>
+        </View>
+        
         <View style={styles.placeholder} />
       </View>
 
@@ -236,7 +240,7 @@ export default function HomeScreen({ navigation }) {
 
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statLabel, { color: colors.secondary }]}>Net Profit</Text>
-              <Text style={[styles.statValue, { color: colors.primary }]}>{formatCurrency(stats.netProfit)}</Text>
+              <Text style={[styles.statValue, { color: colors.netProfit }]}>{formatCurrency(stats.netProfit)}</Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
@@ -245,7 +249,7 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - Apple Glass Effect */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
@@ -350,10 +354,12 @@ const styles = StyleSheet.create({
   },
   menuIconText: {
     fontSize: 64,
-    color: '#FFFFFF',
   },
-  headerTitle: {
-    color: '#FFFFFF',
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerLogo: {
     fontSize: 24,
     fontWeight: 'bold',
   },
@@ -460,10 +466,18 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     width: '48%',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     marginBottom: 12,
+    // Apple Glass Effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   actionText: {
     color: '#FFFFFF',
