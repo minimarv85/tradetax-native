@@ -1,0 +1,380 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { AuthContext } from '../App';
+import { supabase } from '../app-lib/supabase';
+
+// UK Tax Bands 2024/25
+const TAX_BANDS = [
+  { name: 'Personal Allowance', rate: 0, max: 12570 },
+  { name: 'Basic Rate (20%)', rate: 0.2, max: 50270 },
+  { name: 'Higher Rate (40%)', rate: 0.4, max: 125140 },
+  { name: 'Additional Rate (45%)', rate: 0.45, max: null },
+];
+
+// Calculate UK tax
+const calculateUKTax = (income, expenses) => {
+  const profit = Math.max(0, income - expenses);
+  let remainingProfit = profit;
+  let totalTax = 0;
+  let previousMax = 0;
+
+  TAX_BANDS.forEach((band) => {
+    if (remainingProfit <= 0) return;
+    
+    const bandWidth = band.max ? (band.max - previousMax) : Infinity;
+    const taxableInBand = Math.min(remainingProfit, bandWidth);
+    
+    if (taxableInBand > 0) {
+      totalTax += taxableInBand * band.rate;
+      remainingProfit -= taxableInBand;
+      previousMax = band.max || bandWidth + previousMax;
+    }
+  });
+
+  return { profit, tax: totalTax };
+};
+
+export default function HomeScreen({ navigation }) {
+  const { session, colors, toggleTheme } = useContext(AuthContext);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
+  const [stats, setStats] = useState({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    estimatedTax: 0,
+  });
+  const [recentTransactions, setRecentTransactions] = useState([]);
+
+  const fetchData = async () => {
+    if (!session?.user?.id) return;
+
+    setLoading(true);
+    
+    // Get user profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (profile?.full_name) {
+      setUserName(profile.full_name.split(' ')[0]);
+    } else if (session?.user?.email) {
+      setUserName(session.user.email.split('@')[0]);
+    }
+    
+    // Get transactions
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('date', { ascending: false })
+      .limit(10);
+
+    if (transactions) {
+      let income = 0, expenses = 0;
+      transactions.forEach(t => {
+        if (t.type === 'income') income += parseFloat(t.amount);
+        else expenses += parseFloat(t.amount);
+      });
+      
+      // Calculate proper UK tax
+      const { profit, tax } = calculateUKTax(income, expenses);
+      
+      setStats({
+        totalIncome: income,
+        totalExpenses: expenses,
+        netProfit: profit,
+        estimatedTax: tax,
+      });
+      setRecentTransactions(transactions);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchData();
+    });
+    return unsubscribe;
+  }, [session]);
+
+  const formatCurrency = (amount) => {
+    return '£' + parseFloat(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  return (
+    <ScrollView 
+      style={[styles.container, { backgroundColor: colors.background }]}
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={fetchData} />
+      }
+    >
+      <View style={styles.content}>
+        {/* Welcome Header */}
+        <View style={[styles.welcomeCard, { backgroundColor: colors.primary }]}>
+          <Text style={styles.welcomeText}>Welcome Back{userName ? ', ' + userName : ''}!</Text>
+          <Text style={styles.subWelcomeText}>Here's your tax summary</Text>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(stats.totalIncome)}</Text>
+          </View>
+          
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.secondary }]}>Expenses</Text>
+            <Text style={[styles.statValue, { color: colors.danger }]}>{formatCurrency(stats.totalExpenses)}</Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.secondary }]}>Net Profit</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{formatCurrency(stats.netProfit)}</Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
+            <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+        <View style={styles.actionGrid}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: colors.success }]}
+            onPress={() => navigation.navigate('Income')}
+          >
+            <Text style={styles.actionText}>+ Income</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: colors.danger }]}
+            onPress={() => navigation.navigate('Expenses')}
+          >
+            <Text style={styles.actionText}>+ Expense</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.navigate('Receipt')}
+          >
+            <Text style={styles.actionText}>📷 Scan</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+            onPress={() => navigation.navigate('Invoice')}
+          >
+            <Text style={styles.actionText}>📄 Invoice</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* More Features */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+            onPress={() => navigation.navigate('VAT')}
+          >
+            <Text style={styles.actionText}>💰 VAT</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+            onPress={() => navigation.navigate('Mileage')}
+          >
+            <Text style={styles.actionText}>🚗 Mileage</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#FACC15' }]}
+            onPress={() => navigation.navigate('TaxCalc')}
+          >
+            <Text style={[styles.actionText, { color: '#000000' }]}>🧮 Tax Calc</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#EC4899' }]}
+            onPress={() => navigation.navigate('Reports')}
+          >
+            <Text style={styles.actionText}>📊 Reports</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Settings */}
+        <TouchableOpacity 
+          style={[styles.settingsButton, { backgroundColor: colors.secondary }]}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.settingsText}>⚙️ Settings</Text>
+        </TouchableOpacity>
+
+        {/* Recent Transactions */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+        {recentTransactions.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet. Add your first one!</Text>
+        ) : (
+          recentTransactions.map((item) => (
+            <View key={item.id} style={[styles.transactionCard, { backgroundColor: colors.card }]}>
+              <View style={styles.transactionInfo}>
+                <Text style={[styles.transactionDesc, { color: colors.text }]}>{item.description}</Text>
+                <Text style={[styles.transactionDate, { color: colors.secondary }]}>
+                  {new Date(item.date).toLocaleDateString('en-GB')}
+                </Text>
+              </View>
+              <Text style={[
+                styles.transactionAmount,
+                { color: item.type === 'income' ? colors.success : colors.danger }
+              ]}>
+                {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+              </Text>
+            </View>
+          ))
+        )}
+
+        {/* Logout */}
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: colors.danger }]}
+          onPress={() => supabase.auth.signOut()}
+        >
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+  },
+  welcomeCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  welcomeText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  subWelcomeText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statCard: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  actionButton: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  settingsButton: {
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  settingsText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  transactionCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionDesc: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 12,
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+    padding: 20,
+  },
+  logoutButton: {
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  logoutText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
