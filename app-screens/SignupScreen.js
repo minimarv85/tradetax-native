@@ -1,7 +1,77 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Picker } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Modal, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { supabase } from '../app-lib/supabase';
 import { AuthContext } from '../App';
+
+const TAX_REGIONS = [
+  { label: 'England & Northern Ireland', value: 'england' },
+  { label: 'Scotland', value: 'scotland' },
+  { label: 'Wales', value: 'wales' },
+];
+
+const EMPLOYMENT_STATUSES = [
+  { label: 'Self-employed only', value: 'self_employed' },
+  { label: 'Employed + Self-employed', value: 'employed_self' },
+  { label: 'Full-time employed only', value: 'employed' },
+];
+
+const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle }) => {
+  const [showModal, setShowModal] = useState(false);
+
+  const selectedOption = options.find(opt => opt.value === selectedValue);
+
+  return (
+    <View style={containerStyle}>
+      <Text style={[styles.label, { color: '#1F2937' }]}>{label}</Text>
+      <TouchableOpacity 
+        style={[styles.dropdown, { backgroundColor: '#E5E7EB', borderColor: '#D1D5DB' }]}
+        onPress={() => setShowModal(true)}
+      >
+        <Text style={[styles.dropdownText, { color: '#374151' }]}>{selectedOption?.label || 'Select...'}</Text>
+        <Text style={styles.dropdownArrow}>▼</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#1F2937' }]}>{label}</Text>
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    onValueChange(option.value);
+                    setShowModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    { color: option.value === selectedValue ? '#3B82F6' : '#374151' }
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {option.value === selectedValue && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity 
+                style={[styles.modalCancel, { backgroundColor: '#EF4444' }]}
+                onPress={() => setShowModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
+  );
+};
 
 export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -68,148 +138,148 @@ export default function SignupScreen({ navigation }) {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={styles.container}
     >
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
-        <Text style={[styles.subtitle, { color: colors.secondary }]}>Join TradeTax today</Text>
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join TradeTax today</Text>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.label, { color: colors.text }]}>Full Name *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor={colors.secondary}
-          />
+          <View style={styles.card}>
+            <Text style={[styles.label, { color: '#1F2937' }]}>Full Name *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor="#9CA3AF"
+            />
 
-          <Text style={[styles.label, { color: colors.text }]}>Email *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="your@email.com"
-            placeholderTextColor={colors.secondary}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+            <Text style={[styles.label, { color: '#1F2937' }]}>Email *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="your@email.com"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-          <Text style={[styles.label, { color: colors.text }]}>Password *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Create password"
-            placeholderTextColor={colors.secondary}
-            secureTextEntry
-          />
+            <Text style={[styles.label, { color: '#1F2937' }]}>Password *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Create password"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry
+            />
 
-          <View style={styles.divider} />
+            <View style={styles.divider} />
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tax Information</Text>
+            <Text style={styles.sectionTitle}>Tax Information</Text>
 
-          <Text style={[styles.label, { color: colors.text }]}>Tax Region</Text>
-          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Picker
+            <Dropdown
+              label="Tax Region"
               selectedValue={taxRegion}
-              onValueChange={(itemValue) => setTaxRegion(itemValue)}
-              style={{ flex: 1, color: colors.text }}
-            >
-              <Picker.Item label="England & Northern Ireland" value="england" />
-              <Picker.Item label="Scotland" value="scotland" />
-              <Picker.Item label="Wales" value="wales" />
-            </Picker>
-          </View>
+              options={TAX_REGIONS}
+              onValueChange={setTaxRegion}
+              containerStyle={{ marginBottom: 16 }}
+            />
 
-          <Text style={[styles.infoText, { color: colors.secondary }]}>
-            Scotland has different income tax bands
-          </Text>
+            <Text style={[styles.infoText, { color: '#6B7280' }]}>
+              Scotland has different income tax bands
+            </Text>
 
-          <Text style={[styles.label, { color: colors.text }]}>Employment Status</Text>
-          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Picker
+            <Dropdown
+              label="Employment Status"
               selectedValue={employmentStatus}
-              onValueChange={(itemValue) => setEmploymentStatus(itemValue)}
-              style={{ flex: 1, color: colors.text }}
+              options={EMPLOYMENT_STATUSES}
+              onValueChange={setEmploymentStatus}
+              containerStyle={{ marginBottom: 16 }}
+            />
+
+            {employmentStatus !== 'self_employed' && (
+              <>
+                <Text style={[styles.label, { color: '#1F2937' }]}>Annual Salary (£)</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
+                  value={annualSalary}
+                  onChangeText={setAnnualSalary}
+                  placeholder="0.00"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="decimal-pad"
+                />
+
+                <Text style={[styles.label, { color: '#1F2937' }]}>Tax Code (optional)</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: '#F9FAFB', color: '#1F2937', borderColor: '#D1D5DB' }]}
+                  value={taxCode}
+                  onChangeText={setTaxCode}
+                  placeholder="e.g., 1257L"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                />
+              </>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#3B82F6' }]}
+              onPress={handleSignup}
+              disabled={loading}
             >
-              <Picker.Item label="Self-employed only" value="self_employed" />
-              <Picker.Item label="Employed + Self-employed" value="employed_self" />
-              <Picker.Item label="Full-time employed only" value="employed" />
-            </Picker>
+              <Text style={styles.buttonText}>
+                {loading ? 'Creating...' : 'Create Account'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.linkButton}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={[styles.linkText, { color: '#3B82F6' }]}>
+                Already have an account? Sign In
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {employmentStatus !== 'self_employed' && (
-            <>
-              <Text style={[styles.label, { color: colors.text }]}>Annual Salary (£)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                value={annualSalary}
-                onChangeText={setAnnualSalary}
-                placeholder="0.00"
-                placeholderTextColor={colors.secondary}
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={[styles.label, { color: colors.text }]}>Tax Code (optional)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                value={taxCode}
-                onChangeText={setTaxCode}
-                placeholder="e.g., 1257L"
-                placeholderTextColor={colors.secondary}
-                autoCapitalize="characters"
-              />
-            </>
-          )}
-
-          <TouchableOpacity 
-            style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Creating...' : 'Create Account'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.linkButton}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={[styles.linkText, { color: colors.primary }]}>
-              Already have an account? Sign In
-            </Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+import { ScrollView } from 'react-native';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContent: {
+    flex: 1,
   },
   content: {
-    width: '100%',
+    padding: 20,
+    paddingTop: 60,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
+    color: '#1F2937',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
+    color: '#6B7280',
   },
   card: {
     borderRadius: 16,
     padding: 24,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -220,20 +290,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
-    marginTop: 8,
   },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  pickerContainer: {
+  dropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 8,
+    padding: 12,
     marginBottom: 8,
-    overflow: 'hidden',
+  },
+  dropdownText: {
+    fontSize: 16,
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   divider: {
     height: 1,
@@ -244,11 +323,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
+    color: '#1F2937',
   },
   infoText: {
     fontSize: 12,
     fontStyle: 'italic',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   button: {
     borderRadius: 8,
@@ -267,5 +347,53 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalOptionText: {
+    fontSize: 16,
+  },
+  checkmark: {
+    color: '#3B82F6',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalCancel: {
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  modalCancelText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
