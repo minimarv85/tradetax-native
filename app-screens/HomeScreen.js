@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
+import React, { useState, useEffect, useContext, useRef, TouchableWithoutFeedback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Modal } from 'react-native';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
@@ -60,7 +60,8 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 export default function HomeScreen({ navigation }) {
   const { session, colors, toggleTheme } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState('User');
+  const [menuVisible, setMenuVisible] = useState(false);
   const [userSettings, setUserSettings] = useState({
     taxRegion: 'england',
     employmentStatus: 'self_employed',
@@ -86,12 +87,14 @@ export default function HomeScreen({ navigation }) {
       .eq('id', session.user.id)
       .single();
     
-    // Set user name from full_name or email
-    if (profile?.full_name) {
-      setUserName(profile.full_name.split(' ')[0]);
+    // Set user name from full_name or email - prioritize full_name
+    let name = 'User';
+    if (profile?.full_name && profile.full_name.trim() !== '') {
+      name = profile.full_name.split(' ')[0];
     } else if (session?.user?.email) {
-      setUserName(session.user.email.split('@')[0]);
+      name = session.user.email.split('@')[0];
     }
+    setUserName(name);
     
     // Store user settings
     if (profile) {
@@ -107,7 +110,7 @@ export default function HomeScreen({ navigation }) {
       .from('transactions')
       .select('*')
       .eq('user_id', session.user.id)
-      .order('date', { ascending: false })
+      .order('date', ascending: false })
       .limit(10);
 
     if (transactions) {
@@ -149,11 +152,26 @@ export default function HomeScreen({ navigation }) {
     return '£' + parseFloat(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
+  const menuItems = [
+    { label: 'Dashboard', onPress: () => { setMenuVisible(false); } },
+    { label: 'Profile Settings', onPress: () => { setMenuVisible(false); navigation.navigate('Settings'); } },
+    { label: 'Reports', onPress: () => { setMenuVisible(false); navigation.navigate('Reports'); } },
+    { label: 'Export Data', onPress: () => { setMenuVisible(false); } },
+    { label: 'Help & Support', onPress: () => { setMenuVisible(false); } },
+    { label: 'About', onPress: () => { setMenuVisible(false); } },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header with Settings Icon */}
+      {/* Header with Hamburger Menu */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View style={styles.headerLeft}>
+        <TouchableOpacity 
+          style={styles.menuIcon}
+          onPress={() => setMenuVisible(true)}
+        >
+          <Text style={styles.menuIconText}>☰</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>TradeTax</Text>
         </View>
         <TouchableOpacity 
@@ -163,6 +181,35 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.settingsIconText}>⚙️</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Side Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.menuContent, { backgroundColor: colors.card }]}>
+              <View style={[styles.menuHeader, { backgroundColor: colors.primary }]}>
+                <Text style={styles.menuWelcome}>Welcome</Text>
+                <Text style={styles.menuName}>{userName}</Text>
+              </View>
+              
+              {menuItems.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                  onPress={item.onPress}
+                >
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       <ScrollView 
         style={styles.container}
@@ -299,6 +346,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
@@ -306,10 +354,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
-  headerLeft: {
+  menuIcon: {
+    padding: 10,
+  },
+  menuIconText: {
+    fontSize: 28,
+    color: '#FFFFFF',
+  },
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -322,6 +378,39 @@ const styles = StyleSheet.create({
   settingsIconText: {
     fontSize: 28,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    flexDirection: 'row',
+  },
+  menuContent: {
+    width: '75%',
+    height: '100%',
+    paddingTop: 60,
+  },
+  menuHeader: {
+    padding: 20,
+    marginBottom: 10,
+  },
+  menuWelcome: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+  },
+  menuName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 5,
+  },
+  menuItem: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
   },
@@ -333,11 +422,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
   welcomeText: {
     color: '#FFFFFF',
@@ -360,11 +444,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   statLabel: {
     fontSize: 12,
