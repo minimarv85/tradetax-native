@@ -1,38 +1,36 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from 'react-native';
-import { Camera } from 'expo-camera';
+import React, { useState, useContext } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ScrollView, TextInput } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
 export default function ReceiptScannerScreen({ navigation }) {
   const { session, colors } = useContext(AuthContext);
-  const [hasPermission, setHasPermission] = useState(null);
-  const [scanned, setScanned] = useState(false);
   const [photoUri, setPhotoUri] = useState(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
-
   const takePhoto = async () => {
-    if (scanned) return;
-    
     try {
-      const result = await Camera.takePictureAsync({
-        quality: 0.8,
-        base64: false,
-      });
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
-      setPhotoUri(result.uri);
-      setScanned(true);
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow camera access to take photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setPhotoUri(result.assets[0].uri);
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to take photo');
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
@@ -44,21 +42,26 @@ export default function ReceiptScannerScreen({ navigation }) {
 
     setLoading(true);
     
-    // Upload photo to Supabase Storage (if you have a bucket set up)
     let photoUrl = null;
     if (photoUri) {
-      const filename = `receipts/${session.user.id}/${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(filename, { uri: photoUri });
+      try {
+        const filename = `receipts/${session.user.id}/${Date.now()}.jpg`;
+        const response = await fetch(photoUri);
+        const blob = await response.blob();
+        
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(filename, blob);
 
-      if (!uploadError) {
-        const { data } = supabase.storage.from('receipts').getPublicUrl(filename);
-        photoUrl = data.publicUrl;
+        if (!uploadError) {
+          const { data } = supabase.storage.from('receipts').getPublicUrl(filename);
+          photoUrl = data.publicUrl;
+        }
+      } catch (e) {
+        console.log('Upload error:', e);
       }
     }
 
-    // Save transaction
     const { error } = await supabase
       .from('transactions')
       .insert([{
@@ -77,7 +80,6 @@ export default function ReceiptScannerScreen({ navigation }) {
     } else {
       Alert.alert('Success', 'Receipt saved!', [
         { text: 'OK', onPress: () => {
-          setScanned(false);
           setPhotoUri(null);
           setAmount('');
           setDescription('');
@@ -89,31 +91,15 @@ export default function ReceiptScannerScreen({ navigation }) {
   };
 
   const retake = () => {
-    setScanned(false);
     setPhotoUri(null);
   };
-
-  if (hasPermission === null) {
-    return <View style={[styles.container, { backgroundColor: colors.background }]}><Text style={{ color: colors.text }}>Requesting camera permission...</Text></View>;
-  }
-
-  if (hasPermission === false) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.text, { color: colors.text }]}>No camera permission</Text>
-        <Text style={[styles.subtext, { color: colors.secondary }]}>
-          Please enable camera access in your device settings.
-        </Text>
-      </View>
-    );
-  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>Receipt Scanner</Text>
         
-        {!scanned ? (
+        {!photoUri ? (
           <View style={styles.cameraContainer}>
             <TouchableOpacity 
               style={[styles.captureButton, { backgroundColor: colors.primary }]}
@@ -122,14 +108,12 @@ export default function ReceiptScannerScreen({ navigation }) {
               <Text style={styles.captureText}>📷 Take Photo</Text>
             </TouchableOpacity>
             <Text style={[styles.instruction, { color: colors.secondary }]}>
-              Position the receipt in the frame
+              Take a photo of your receipt
             </Text>
           </View>
         ) : (
           <View style={styles.resultContainer}>
-            {photoUri && (
-              <Image source={{ uri: photoUri }} style={styles.previewImage} />
-            )}
+            <Image source={{ uri: photoUri }} style={styles.previewImage} />
             
             <Text style={[styles.label, { color: colors.text }]}>Amount (£)</Text>
             <TextInput
@@ -159,7 +143,7 @@ export default function ReceiptScannerScreen({ navigation }) {
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.button, { backgroundColor: colors.danger }]}
+                style={[styles.button, { backgroundColor: colors.primary }]}
                 onPress={handleSaveReceipt}
                 disabled={loading}
               >
@@ -188,7 +172,7 @@ const styles = StyleSheet.create({
   cameraContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 400,
+    height: 300,
     borderRadius: 16,
     backgroundColor: '#1F2937',
     marginBottom: 16,
@@ -245,15 +229,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  text: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  subtext: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
   },
 });

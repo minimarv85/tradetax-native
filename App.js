@@ -25,31 +25,31 @@ import ExportScreen from './app-screens/ExportScreen';
 const Stack = createStackNavigator();
 export const AuthContext = createContext(null);
 
-// Professional corporate colour scheme
+// Professional corporate colour scheme - Sage Green
 const lightTheme = {
   background: '#FAFAFA',
   card: '#FFFFFF',
   text: '#1E293B',
-  primary: '#1E40AF',
+  primary: '#5C7A5C',
   secondary: '#64748B',
-  accent: '#0EA5E9',
+  accent: '#7D9B76',
   success: '#059669',
   danger: '#DC2626',
   border: '#E2E8F0',
-  quickAction: '#1E40AF',
+  quickAction: '#6B8E6B',
 };
 
 const darkTheme = {
   background: '#0F172A',
   card: '#1E293B',
   text: '#F1F5F9',
-  primary: '#3B82F6',
+  primary: '#7D9B76',
   secondary: '#94A3B8',
-  accent: '#38BDF8',
+  accent: '#9DC69D',
   success: '#10B981',
   danger: '#EF4444',
   border: '#334155',
-  quickAction: '#3B82F6',
+  quickAction: '#6B8E6B',
 };
 
 export default function App() {

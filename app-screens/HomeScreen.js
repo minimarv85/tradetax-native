@@ -215,7 +215,7 @@ export default function HomeScreen({ navigation }) {
           {/* Welcome Header */}
           <View style={styles.welcomeSection}>
             <Text style={[styles.welcomeText, { color: colors.text }]}>
-              Welcome{userName && userName !== 'User' ? ', ' + userName : ''}
+              Hi{userName && userName !== 'User' ? ', ' + userName : ''}
             </Text>
             <Text style={[styles.subWelcomeText, { color: colors.secondary }]}>
               Here's your tax summary
@@ -245,7 +245,7 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Quick Actions - Professional Corporate Look */}
+          {/* Quick Actions */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
@@ -266,7 +266,7 @@ export default function HomeScreen({ navigation }) {
               style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Receipt')}
             >
-              <Text style={styles.actionText}>Scan</Text>
+              <Text style={styles.actionText}>Take Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -346,10 +346,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   menuButton: {
-    padding: 12,
+    padding: 16,
   },
   menuIconText: {
-    fontSize: 32,
+    fontSize: 64,
     color: '#FFFFFF',
   },
   headerTitle: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   placeholder: {
-    width: 56,
+    width: 96,
   },
   modalOverlay: {
     flex: 1,
@@ -412,10 +412,11 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   welcomeSection: {
+    paddingTop: 24,
     marginBottom: 20,
   },
   welcomeText: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   subWelcomeText: {
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     marginBottom: 4,
-    textTransform: 'upperspace',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statValue: {
@@ -460,13 +461,13 @@ const styles = StyleSheet.create({
   actionButton: {
     width: '48%',
     borderRadius: 12,
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
     marginBottom: 12,
   },
   actionText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
   transactionCard: {
@@ -474,22 +475,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginBottom: 8,
   },
   transactionInfo: {
     flex: 1,
   },
   transactionDesc: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   transactionDate: {
-    fontSize: 12,
+    fontSize: 13,
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   emptyText: {
