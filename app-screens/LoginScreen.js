@@ -9,7 +9,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { colors } = useContext(AuthContext);
+  const { colors, resetNavigation } = useContext(AuthContext);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -26,10 +26,7 @@ export default function LoginScreen({ navigation }) {
       
       if (!error && data.session) {
         // Session restored - navigate to home
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        });
+        resetNavigation('Home');
       } else {
         // Token expired or invalid - clear it
         await SecureStore.deleteItemAsync('refreshToken');

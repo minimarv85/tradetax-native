@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, StyleSheet, Text, Appearance } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from './app-lib/supabase';
 
@@ -25,35 +25,38 @@ import ExportScreen from './app-screens/ExportScreen';
 const Stack = createStackNavigator();
 export const AuthContext = createContext(null);
 
-// Clean, polished colour scheme
+// Professional corporate colour scheme
 const lightTheme = {
-  background: '#FFFFFF',
-  card: '#F5F5F5',
-  text: '#1A1A1A',
-  primary: '#2563EB',
-  secondary: '#6B7280',
-  accent: '#F59E0B',
+  background: '#FAFAFA',
+  card: '#FFFFFF',
+  text: '#1E293B',
+  primary: '#1E40AF',
+  secondary: '#64748B',
+  accent: '#0EA5E9',
   success: '#059669',
   danger: '#DC2626',
-  border: '#E5E5E5',
+  border: '#E2E8F0',
+  quickAction: '#1E40AF',
 };
 
 const darkTheme = {
-  background: '#0A0A0A',
-  card: '#1A1A1A',
-  text: '#FFFFFF',
+  background: '#0F172A',
+  card: '#1E293B',
+  text: '#F1F5F9',
   primary: '#3B82F6',
-  secondary: '#9CA3AF',
-  accent: '#FACC15',
+  secondary: '#94A3B8',
+  accent: '#38BDF8',
   success: '#10B981',
   danger: '#EF4444',
-  border: '#262626',
+  border: '#334155',
+  quickAction: '#3B82F6',
 };
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState('dark');
+  const navigationRef = React.createRef();
 
   useEffect(() => {
     SecureStore.getItemAsync('theme').then(savedTheme => {
@@ -71,6 +74,15 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const resetNavigation = (routeName) => {
+    navigationRef.current.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: routeName }],
+      })
+    );
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -90,8 +102,8 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ session, theme, colors, toggleTheme }}>
-      <NavigationContainer>
+    <AuthContext.Provider value={{ session, theme, colors, toggleTheme, resetNavigation }}>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerStyle: { backgroundColor: colors.primary },

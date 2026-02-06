@@ -74,7 +74,7 @@ const EMPLOYMENT_STATUSES = [
 ];
 
 export default function SettingsScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const { session, colors, resetNavigation } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
   const [taxRegion, setTaxRegion] = useState('england');
@@ -140,12 +140,8 @@ export default function SettingsScreen({ navigation }) {
           text: 'Logout', 
           style: 'destructive',
           onPress: async () => {
-            await clearSession(); // Clear secure tokens
-            // Navigate to login
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
+            await clearSession();
+            resetNavigation('Login');
           }
         },
       ]

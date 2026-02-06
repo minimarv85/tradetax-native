@@ -24,7 +24,7 @@ const FAQItem = ({ question, answer }) => {
 };
 
 export default function HelpSupportScreen({ navigation }) {
-  const { colors } = useContext(AuthContext);
+  const { colors, resetNavigation } = useContext(AuthContext);
 
   const handleContactSupport = () => {
     Alert.alert(
@@ -48,10 +48,7 @@ export default function HelpSupportScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             await clearSession();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
+            resetNavigation('Login');
           }
         },
       ]

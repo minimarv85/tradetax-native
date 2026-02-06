@@ -24,7 +24,6 @@ const TAX_BANDS_SCOTLAND = [
 // Calculate UK tax based on region and salary
 const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSalary) => {
   const profit = Math.max(0, income - expenses);
-  
   const taxBands = taxRegion === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
   
   let personalAllowance = 12570;
@@ -38,11 +37,10 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 
   taxBands.forEach((band) => {
     if (remainingProfit <= 0) return;
-    
     const bandWidth = band.max ? (band.max - previousMax) : Infinity;
     const taxableInBand = Math.min(remainingProfit, bandWidth);
-    
     let taxableAmount = taxableInBand;
+    
     if (band.rate === 0 && personalAllowance > 0) {
       taxableAmount = Math.min(taxableInBand, personalAllowance);
       remainingProfit = Math.max(0, remainingProfit - personalAllowance);
@@ -59,7 +57,7 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 };
 
 export default function HomeScreen({ navigation }) {
-  const { session, colors } = useContext(AuthContext);
+  const { session, colors, resetNavigation } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [menuVisible, setMenuVisible] = useState(false);
@@ -73,7 +71,6 @@ export default function HomeScreen({ navigation }) {
 
   const fetchData = async () => {
     if (!session?.user?.id) return;
-
     setLoading(true);
     
     try {
@@ -83,7 +80,6 @@ export default function HomeScreen({ navigation }) {
         .eq('id', session.user.id)
         .single();
       
-      // Set user name
       let name = 'User';
       if (profile?.full_name?.trim()) {
         name = profile.full_name.split(' ')[0];
@@ -146,24 +142,24 @@ export default function HomeScreen({ navigation }) {
         style: 'destructive',
         onPress: async () => {
           await clearSession();
-          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          resetNavigation('Login');
         }
       },
     ]);
   };
 
   const menuItems = [
-    { label: '📊 Dashboard', onPress: () => setMenuVisible(false) },
-    { label: '👤 Profile Settings', onPress: () => { setMenuVisible(false); navigation.navigate('Settings'); } },
-    { label: '📈 Reports', onPress: () => { setMenuVisible(false); navigation.navigate('Reports'); } },
-    { label: '📤 Export Data', onPress: () => { setMenuVisible(false); navigation.navigate('Export'); } },
-    { label: '❓ Help & Support', onPress: () => { setMenuVisible(false); navigation.navigate('HelpSupport'); } },
-    { label: 'ℹ️ About', onPress: () => { setMenuVisible(false); navigation.navigate('About'); } },
+    { label: 'Dashboard', onPress: () => setMenuVisible(false) },
+    { label: 'Profile Settings', onPress: () => { setMenuVisible(false); navigation.navigate('Settings'); } },
+    { label: 'Reports', onPress: () => { setMenuVisible(false); navigation.navigate('Reports'); } },
+    { label: 'Export Data', onPress: () => { setMenuVisible(false); navigation.navigate('Export'); } },
+    { label: 'Help & Support', onPress: () => { setMenuVisible(false); navigation.navigate('HelpSupport'); } },
+    { label: 'About', onPress: () => { setMenuVisible(false); navigation.navigate('About'); } },
   ];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header - Clean with just hamburger */}
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity 
           style={styles.menuButton}
@@ -216,7 +212,7 @@ export default function HomeScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} />}
       >
         <View style={styles.content}>
-          {/* Welcome Header - Clean, no background colour */}
+          {/* Welcome Header */}
           <View style={styles.welcomeSection}>
             <Text style={[styles.welcomeText, { color: colors.text }]}>
               Welcome{userName && userName !== 'User' ? ', ' + userName : ''}
@@ -226,7 +222,7 @@ export default function HomeScreen({ navigation }) {
             </Text>
           </View>
 
-          {/* Stats Grid - Clean cards */}
+          {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
@@ -245,36 +241,36 @@ export default function HomeScreen({ navigation }) {
 
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
-              <Text style={[styles.statValue, { color: '#F59E0B' }]}>{formatCurrency(stats.estimatedTax)}</Text>
+              <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
             </View>
           </View>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - Professional Corporate Look */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.success }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Income')}
             >
               <Text style={styles.actionText}>+ Income</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.danger }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Expenses')}
             >
               <Text style={styles.actionText}>+ Expense</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Receipt')}
             >
               <Text style={styles.actionText}>Scan</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#6366F1' }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Invoice')}
             >
               <Text style={styles.actionText}>Invoice</Text>
@@ -284,28 +280,28 @@ export default function HomeScreen({ navigation }) {
           {/* More Features */}
           <View style={styles.actionGrid}>
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('VAT')}
             >
               <Text style={styles.actionText}>VAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Mileage')}
             >
               <Text style={styles.actionText}>Mileage</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('TaxCalc')}
             >
               <Text style={styles.actionText}>Tax Calc</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#EC4899' }]}
+              style={[styles.actionButton, { backgroundColor: colors.quickAction }]}
               onPress={() => navigation.navigate('Reports')}
             >
               <Text style={styles.actionText}>Reports</Text>
@@ -355,10 +351,6 @@ const styles = StyleSheet.create({
   menuIconText: {
     fontSize: 32,
     color: '#FFFFFF',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -445,7 +437,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     marginBottom: 4,
-    textTransform: 'uppercase',
+    textTransform: 'upperspace',
     letterSpacing: 0.5,
   },
   statValue: {
