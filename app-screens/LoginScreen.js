@@ -73,7 +73,12 @@ export default function LoginScreen({ navigation }) {
       style={[styles.container, { backgroundColor: bgColor }]}
     >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: textColor }]}>TradeTax</Text>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoIcon}>📊</Text>
+          <Text style={[styles.logoText, { color: textColor }]}>TradeTax</Text>
+        </View>
+        
         <Text style={[styles.subtitle, { color: secondaryColor }]}>UK Sole Trader Tax Tracker</Text>
 
         <View style={[styles.card, { backgroundColor: cardBg }]}>
@@ -99,20 +104,24 @@ export default function LoginScreen({ navigation }) {
           />
 
           <View style={styles.rememberMeContainer}>
-            <View style={styles.switchContainer}>
-              <Switch
-                value={rememberMe}
-                onValueChange={setRememberMe}
-                trackColor={{ false: '#767577', true: '#4CAF50' }}
-                thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
-              />
-              <Text style={[styles.rememberMeText, { color: textColor }]}>
-                Remember Me
-              </Text>
+            <View style={styles.switchRow}>
+              <View style={styles.switchWrapper}>
+                <Switch
+                  value={rememberMe}
+                  onValueChange={setRememberMe}
+                  trackColor={{ false: '#9CA3AF', true: primaryColor }}
+                  thumbColor={rememberMe ? '#FFFFFF' : '#F3F4F6'}
+                />
+              </View>
+              <View style={styles.rememberMeTextContainer}>
+                <Text style={[styles.rememberMeText, { color: textColor }]}>
+                  Remember Me
+                </Text>
+                <Text style={[styles.rememberMeSubtext, { color: secondaryColor }]}>
+                  Stays logged in securely
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.rememberMeSubtext, { color: secondaryColor }]}>
-              Stays logged in securely
-            </Text>
           </View>
 
           <TouchableOpacity 
@@ -155,6 +164,19 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logoIcon: {
+    fontSize: 64,
+    marginBottom: 8,
+  },
+  logoText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
@@ -188,24 +210,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   rememberMeContainer: {
-    flexDirection: 'column',
     marginBottom: 16,
-    padding: 12,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  switchWrapper: {
+    backgroundColor: '#E2E8F0',
     borderRadius: 8,
+    padding: 4,
   },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  rememberMeTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
   rememberMeText: {
     fontSize: 15,
     fontWeight: '600',
-    marginLeft: 12,
   },
   rememberMeSubtext: {
     fontSize: 12,
-    marginLeft: 44,
     marginTop: 2,
   },
   button: {
