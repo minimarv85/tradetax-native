@@ -1,242 +1,369 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, TouchableWithoutFeedback, Modal } from 'react-native';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
-import * as SecureStore from 'expo-secure-store';
+
+const Dropdown = ({ label, selectedValue, options, onValueChange, containerStyle }) => {
+  const [showModal, setShowModal] = useState(false);
+  const selectedOption = options.find(opt => opt.value === selectedValue);
+
+  return (
+    <View style={containerStyle}>
+      <Text style={[styles.label, { color: '#1F2937' }]}>{label}</Text>
+      <TouchableOpacity 
+        style={[styles.dropdown, { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' }]}
+        onPress={() => setShowModal(true)}
+      >
+        <Text style={[styles.dropdownText, { color: '#374151' }]}>{selectedOption?.label || 'Select...'}</Text>
+        <Text style={styles.dropdownArrow}>▼</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#1F2937' }]}>{label}</Text>
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    onValueChange(option.value);
+                    setShowModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    { color: option.value === selectedValue ? '#3B82F6' : '#374151' }
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {option.value === selectedValue && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity 
+                style={[styles.modalCancel, { backgroundColor: '#EF4444' }]}
+                onPress={() => setShowModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
+  );
+};
+
+const TAX_REGIONS = [
+  { label: 'England & Northern Ireland', value: 'england' },
+  { label: 'Scotland', value: 'scotland' },
+  { label: 'Wales', value: 'wales' },
+];
+
+const EMPLOYMENT_STATUSES = [
+  { label: 'Self-employed only', value: 'self_employed' },
+  { label: 'Employed + Self-employed', value: 'employed_self' },
+  { label: 'Full-time employed only', value: 'employed' },
+];
 
 export default function SettingsScreen({ navigation }) {
-  const { session, colors, toggleTheme, theme } = useContext(AuthContext);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const { session, colors } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [taxRegion, setTaxRegion] = useState('england');
+  const [employmentStatus, setEmploymentStatus] = useState('self_employed');
+  const [annualSalary, setAnnualSalary] = useState('');
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => supabase.auth.signOut() }
-      ]
-    );
+  useEffect(() => {
+    fetchProfile();
+  }, [session]);
+
+  const fetchProfile = async () => {
+    if (!session?.user?.id) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (data) {
+      setFullName(data.full_name || '');
+      setTaxRegion(data.tax_region || 'england');
+      setEmploymentStatus(data.employment_status || 'self_employed');
+      setAnnualSalary(data.annual_salary?.toString() || '');
+    }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. All your data will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-          const { error } = await supabase.auth.admin.deleteUser(session.user.id);
-          if (error) {
-            Alert.alert('Error', error.message);
-          } else {
-            supabase.auth.signOut();
-          }
-        }}
-      ]
-    );
+  const handleSave = async () => {
+    if (!session?.user?.id) return;
+
+    setLoading(true);
+
+    const updates = {
+      id: session.user.id,
+      full_name: fullName,
+      tax_region: taxRegion,
+      employment_status: employmentStatus,
+      annual_salary: parseFloat(annualSalary) || 0,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(updates);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Success', 'Settings saved!');
+    }
+
+    setLoading(false);
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-
-        {/* Appearance */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
-          
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
-            <Switch
-              value={theme === 'dark'}
-              onValueChange={toggleTheme}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor={theme === 'dark' ? colors.accent : '#f4f3f4'}
-            />
-          </View>
-        </View>
-
-        {/* Security */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
-          
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Face ID / Fingerprint</Text>
-            <Switch
-              value={biometricEnabled}
-              onValueChange={() => {
-                setBiometricEnabled(!biometricEnabled);
-                if (!biometricEnabled) {
-                  SecureStore.setItemAsync('biometric_enabled', 'true');
-                } else {
-                  SecureStore.deleteItemAsync('biometric_enabled');
-                }
-              }}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor={biometricEnabled ? colors.accent : '#f4f3f4'}
-            />
-          </View>
-
-          <Text style={[styles.infoText, { color: colors.secondary }]}>
-            Enable biometric login for faster, more secure access to your account.
-          </Text>
-        </View>
-
-        {/* Account */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.secondary }]}>Email</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>{session?.user?.email}</Text>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.secondary }]}>User ID</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>{session?.user?.id?.substring(0, 8)}...</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.dangerButton, { backgroundColor: colors.danger }]}
-            onPress={handleLogout}
-          >
-            <Text style={styles.dangerText}>Sign Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.deleteButton, { borderColor: colors.danger }]}
-            onPress={handleDeleteAccount}
-          >
-            <Text style={[styles.deleteText, { color: colors.danger }]}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* About */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.secondary }]}>Version</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>1.0.0</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.secondary }]}>Data Sync</Text>
-            <Text style={[styles.infoValue, { color: colors.success }]}>Supabase Connected</Text>
-          </View>
-        </View>
-
-        {/* Data Management */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
-          
-          <TouchableOpacity 
-            style={styles.actionRow}
-            onPress={() => Alert.alert('Export Data', 'Export feature coming soon!')}
-          >
-            <Text style={[styles.actionText, { color: colors.text }]}>Export Data</Text>
-            <Text style={[styles.arrow, { color: colors.secondary }]}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionRow}
-            onPress={() => Alert.alert('Clear Cache', 'Cache cleared successfully!')}
-          >
-            <Text style={[styles.actionText, { color: colors.text }]}>Clear Cache</Text>
-            <Text style={[styles.arrow, { color: colors.secondary }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile Settings</Text>
+        <View style={styles.placeholder} />
       </View>
-    </ScrollView>
+
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+
+          <Text style={[styles.label, { color: '#1F2937' }]}>Full Name</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: '#F3F4F6', color: '#1F2937', borderColor: '#D1D5DB' }]}
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Your name"
+            placeholderTextColor="#9CA3AF"
+          />
+
+          <Text style={[styles.label, { color: '#6B7280', fontSize: 12, marginTop: -8, marginBottom: 16 }]}>
+            This name will appear on your welcome screen
+          </Text>
+
+          <Dropdown
+            label="Tax Region"
+            selectedValue={taxRegion}
+            options={TAX_REGIONS}
+            onValueChange={setTaxRegion}
+            containerStyle={{ marginBottom: 16 }}
+          />
+
+          <Text style={[styles.infoText, { color: '#6B7280' }]}>
+            Scotland has different income tax bands
+          </Text>
+
+          <Dropdown
+            label="Employment Status"
+            selectedValue={employmentStatus}
+            options={EMPLOYMENT_STATUSES}
+            onValueChange={setEmploymentStatus}
+            containerStyle={{ marginBottom: 16 }}
+          />
+
+          {employmentStatus !== 'self_employed' && (
+            <>
+              <Text style={[styles.label, { color: '#1F2937' }]}>Annual Salary (£)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: '#F3F4F6', color: '#1F2937', borderColor: '#D1D5DB' }]}
+                value={annualSalary}
+                onChangeText={setAnnualSalary}
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+              />
+            </>
+          )}
+
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: colors.primary }]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Saving...' : 'Save Settings'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Account Info */}
+        <View style={[styles.card, { marginTop: 16 }]}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={[styles.label, { color: '#6B7280' }]}>Email</Text>
+          <Text style={[styles.value, { color: '#1F2937' }]}>{session?.user?.email}</Text>
+        </View>
+
+        {/* App Info */}
+        <View style={[styles.card, { marginTop: 16, marginBottom: 40 }]}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={[styles.label, { color: '#6B7280' }]}>Version</Text>
+          <Text style={[styles.value, { color: '#1F2937' }]}>1.0.0</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 10,
+    width: 50,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#FFFFFF',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  placeholder: {
+    width: 50,
+  },
   container: {
     flex: 1,
+    backgroundColor: '#F9FAFB',
   },
   content: {
     padding: 16,
+    paddingTop: 10,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 24,
-  },
-  section: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#1F2937',
   },
-  settingRow: {
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  value: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  dropdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
   },
-  settingLabel: {
+  dropdownText: {
     fontSize: 16,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  infoLabel: {
-    fontSize: 14,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   infoText: {
     fontSize: 12,
-    marginTop: 4,
+    fontStyle: 'italic',
+    marginBottom: 16,
   },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  actionText: {
-    fontSize: 16,
-  },
-  arrow: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  dangerButton: {
+  button: {
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
-  dangerText: {
+  buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  deleteButton: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    padding: 20,
   },
-  deleteText: {
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalOptionText: {
+    fontSize: 16,
+  },
+  checkmark: {
+    color: '#3B82F6',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalCancel: {
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  modalCancelText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
