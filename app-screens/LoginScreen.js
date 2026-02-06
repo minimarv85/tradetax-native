@@ -58,6 +58,8 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync('rememberMe', 'true');
     }
 
+    // Navigate to home after successful login
+    resetNavigation('Home');
     setLoading(false);
   };
 
