@@ -24,13 +24,10 @@ const TAX_BANDS_SCOTLAND = [
 const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSalary) => {
   const profit = Math.max(0, income - expenses);
   
-  // Select tax bands based on region
   const taxBands = taxRegion === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
   
-  // Calculate personal allowance based on employment
   let personalAllowance = 12570;
   if (employmentStatus === 'employed_self' || employmentStatus === 'employed') {
-    // Reduce personal allowance by salary (simplified)
     personalAllowance = Math.max(0, 12570 - (annualSalary * 0.1));
   }
   
@@ -44,7 +41,6 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
     const bandWidth = band.max ? (band.max - previousMax) : Infinity;
     const taxableInBand = Math.min(remainingProfit, bandWidth);
     
-    // Adjust for personal allowance on 0% band
     let taxableAmount = taxableInBand;
     if (band.rate === 0 && personalAllowance > 0) {
       taxableAmount = Math.min(taxableInBand, personalAllowance);
@@ -90,6 +86,7 @@ export default function HomeScreen({ navigation }) {
       .eq('id', session.user.id)
       .single();
     
+    // Set user name from full_name or email
     if (profile?.full_name) {
       setUserName(profile.full_name.split(' ')[0]);
     } else if (session?.user?.email) {
@@ -120,7 +117,6 @@ export default function HomeScreen({ navigation }) {
         else expenses += parseFloat(t.amount);
       });
       
-      // Calculate proper UK tax with user settings
       const { profit, tax } = calculateUKTax(
         income, 
         expenses, 
@@ -154,154 +150,184 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.background }]}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={fetchData} />
-      }
-    >
-      <View style={styles.content}>
-        {/* Welcome Header */}
-        <View style={[styles.welcomeCard, { backgroundColor: colors.primary }]}>
-          <Text style={styles.welcomeText}>Welcome Back{userName ? ', ' + userName : ''}!</Text>
-          <Text style={styles.subWelcomeText}>Here's your tax summary</Text>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Header with Settings Icon */}
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>TradeTax</Text>
         </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
-            <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(stats.totalIncome)}</Text>
-          </View>
-          
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.secondary }]}>Expenses</Text>
-            <Text style={[styles.statValue, { color: colors.danger }]}>{formatCurrency(stats.totalExpenses)}</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.secondary }]}>Net Profit</Text>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{formatCurrency(stats.netProfit)}</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-        <View style={styles.actionGrid}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.success }]}
-            onPress={() => navigation.navigate('Income')}
-          >
-            <Text style={styles.actionText}>+ Income</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.danger }]}
-            onPress={() => navigation.navigate('Expenses')}
-          >
-            <Text style={styles.actionText}>+ Expense</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate('Receipt')}
-          >
-            <Text style={styles.actionText}>📷 Scan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-            onPress={() => navigation.navigate('Invoice')}
-          >
-            <Text style={styles.actionText}>📄 Invoice</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* More Features */}
-        <View style={styles.actionGrid}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-            onPress={() => navigation.navigate('VAT')}
-          >
-            <Text style={styles.actionText}>💰 VAT</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
-            onPress={() => navigation.navigate('Mileage')}
-          >
-            <Text style={styles.actionText}>🚗 Mileage</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#FACC15' }]}
-            onPress={() => navigation.navigate('TaxCalc')}
-          >
-            <Text style={[styles.actionText, { color: '#000000' }]}>🧮 Tax Calc</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#EC4899' }]}
-            onPress={() => navigation.navigate('Reports')}
-          >
-            <Text style={styles.actionText}>📊 Reports</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Settings */}
         <TouchableOpacity 
-          style={[styles.settingsButton, { backgroundColor: colors.secondary }]}
+          style={styles.settingsIcon}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.settingsText}>⚙️ Settings</Text>
-        </TouchableOpacity>
-
-        {/* Recent Transactions */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
-        {recentTransactions.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet. Add your first one!</Text>
-        ) : (
-          recentTransactions.map((item) => (
-            <View key={item.id} style={[styles.transactionCard, { backgroundColor: colors.card }]}>
-              <View style={styles.transactionInfo}>
-                <Text style={[styles.transactionDesc, { color: colors.text }]}>{item.description}</Text>
-                <Text style={[styles.transactionDate, { color: colors.secondary }]}>
-                  {new Date(item.date).toLocaleDateString('en-GB')}
-                </Text>
-              </View>
-              <Text style={[
-                styles.transactionAmount,
-                { color: item.type === 'income' ? colors.success : colors.danger }
-              ]}>
-                {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
-              </Text>
-            </View>
-          ))
-        )}
-
-        {/* Logout */}
-        <TouchableOpacity 
-          style={[styles.logoutButton, { backgroundColor: colors.danger }]}
-          onPress={() => supabase.auth.signOut()}
-        >
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.settingsIconText}>⚙️</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+
+      <ScrollView 
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchData} />
+        }
+      >
+        <View style={styles.content}>
+          {/* Welcome Header */}
+          <View style={[styles.welcomeCard, { backgroundColor: colors.primary }]}>
+            <Text style={styles.welcomeText}>Welcome Back{userName ? ', ' + userName : ''}!</Text>
+            <Text style={styles.subWelcomeText}>Here's your tax summary</Text>
+          </View>
+
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
+              <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(stats.totalIncome)}</Text>
+            </View>
+            
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statLabel, { color: colors.secondary }]}>Expenses</Text>
+              <Text style={[styles.statValue, { color: colors.danger }]}>{formatCurrency(stats.totalExpenses)}</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statLabel, { color: colors.secondary }]}>Net Profit</Text>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{formatCurrency(stats.netProfit)}</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
+              <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
+            </View>
+          </View>
+
+          {/* Quick Actions */}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.success }]}
+              onPress={() => navigation.navigate('Income')}
+            >
+              <Text style={styles.actionText}>+ Income</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.danger }]}
+              onPress={() => navigation.navigate('Expenses')}
+            >
+              <Text style={styles.actionText}>+ Expense</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={() => navigation.navigate('Receipt')}
+            >
+              <Text style={styles.actionText}>📷 Scan</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+              onPress={() => navigation.navigate('Invoice')}
+            >
+              <Text style={styles.actionText}>📄 Invoice</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* More Features */}
+          <View style={styles.actionGrid}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+              onPress={() => navigation.navigate('VAT')}
+            >
+              <Text style={styles.actionText}>💰 VAT</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+              onPress={() => navigation.navigate('Mileage')}
+            >
+              <Text style={styles.actionText}>🚗 Mileage</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#FACC15' }]}
+              onPress={() => navigation.navigate('TaxCalc')}
+            >
+              <Text style={[styles.actionText, { color: '#000000' }]}>🧮 Tax Calc</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#EC4899' }]}
+              onPress={() => navigation.navigate('Reports')}
+            >
+              <Text style={styles.actionText}>📊 Reports</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Recent Transactions */}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+          {recentTransactions.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet. Add your first one!</Text>
+          ) : (
+            recentTransactions.map((item) => (
+              <View key={item.id} style={[styles.transactionCard, { backgroundColor: colors.card }]}>
+                <View style={styles.transactionInfo}>
+                  <Text style={[styles.transactionDesc, { color: colors.text }]}>{item.description}</Text>
+                  <Text style={[styles.transactionDate, { color: colors.secondary }]}>
+                    {new Date(item.date).toLocaleDateString('en-GB')}
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.transactionAmount,
+                  { color: item.type === 'income' ? colors.success : colors.danger }
+                ]}>
+                  {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+                </Text>
+              </View>
+            ))
+          )}
+
+          {/* Logout */}
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: colors.danger }]}
+            onPress={() => supabase.auth.signOut()}
+          >
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  settingsIcon: {
+    padding: 10,
+  },
+  settingsIconText: {
+    fontSize: 28,
+  },
   container: {
     flex: 1,
   },
   content: {
     padding: 16,
+    paddingTop: 0,
   },
   welcomeCard: {
     borderRadius: 16,
@@ -371,18 +397,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
-  },
-  settingsButton: {
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  settingsText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   transactionCard: {
     flexDirection: 'row',
