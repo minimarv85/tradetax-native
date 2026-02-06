@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert 
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
 
-// UK Tax Bands 2024/25 (England, Wales, NI)
+// UK Tax Bands 2024/25 (England, Wales, NI) - AFTER Personal Allowance
 const TAX_BANDS_UK = [
   { name: 'Personal Allowance', rate: 0, max: 12570 },
   { name: 'Basic Rate (20%)', rate: 0.20, max: 50270 },
@@ -11,19 +11,22 @@ const TAX_BANDS_UK = [
   { name: 'Additional Rate (45%)', rate: 0.45, max: null },
 ];
 
-// Scottish Tax Bands 2024/25
+// Scottish Tax Bands 2024/25 - AFTER Personal Allowance
+// Source: https://www.gov.uk/government/publications/rates-and-allowances-income-tax/income-tax-rates-and-allowances-current-and-past
 const TAX_BANDS_SCOTLAND = [
-  { name: 'Starter Rate (19%)', rate: 0.19, max: 14732 },
-  { name: 'Scottish Basic (20%)', rate: 0.20, max: 25656 },
-  { name: 'Scottish Intermediate (21%)', rate: 0.21, max: 43662 },
-  { name: 'Scottish Higher (42%)', rate: 0.42, max: 125140 },
-  { name: 'Scottish Top (48%)', rate: 0.48, max: null },
+  { name: 'Personal Allowance', rate: 0, max: 12570 },
+  { name: 'Starter Rate (19%)', rate: 0.19, max: 14876 },
+  { name: 'Basic Rate (20%)', rate: 0.20, max: 26561 },
+  { name: 'Intermediate Rate (21%)', rate: 0.21, max: 43662 },
+  { name: 'Higher Rate (42%)', rate: 0.42, max: 75000 },
+  { name: 'Advanced Rate (45%)', rate: 0.45, max: 125140 },
+  { name: 'Top Rate (48%)', rate: 0.48, max: null },
 ];
 
-// National Insurance 2024/25
+// National Insurance 2024/25 - Source: https://www.gov.uk/self-employed-national-insurance-rates
 const NIC_RATES = {
-  class2: { weekly: 3.45, threshold: 6725 }, // £3.45/week if profit over £6,725/year
-  class4: { lowerRate: 0.09, lowerThreshold: 12570, upperThreshold: 50270, upperRate: 0.02 },
+  class2: { weekly: 3.50, threshold: 6725 }, // £3.50/week if profit over £6,725
+  class4: { lowerRate: 0.06, lowerThreshold: 12570, upperThreshold: 50270, upperRate: 0.02 },
 };
 
 export default function TaxCalcScreen() {
@@ -69,146 +72,146 @@ export default function TaxCalcScreen() {
     calculateTax();
   }, [taxRegion, employmentStatus, annualSalary, selfEmploymentProfit]);
 
+  /**
+   * Calculate income tax based on HMRC 2024/25 rates
+   * Source: https://www.gov.uk/government/publications/rates-and-allowances-income-tax/income-tax-rates-and-allowances-current-and-past
+   */
+  const calculateIncomeTax = (totalIncome, region) => {
+    const taxBands = region === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
+    
+    // Personal Allowance reduces by £1 for every £2 above £100,000
+    let personalAllowance = 12570;
+    if (totalIncome > 100000) {
+      const reduction = Math.floor((totalIncome - 100000) / 2);
+      personalAllowance = Math.max(0, personalAllowance - reduction);
+    }
+    
+    const taxableIncome = Math.max(0, totalIncome - personalAllowance);
+    
+    let totalTax = 0;
+    let breakdown = [];
+    let remainingIncome = taxableIncome;
+    let previousMax = 0;
+    
+    // Calculate tax by band
+    for (const band of taxBands) {
+      if (remainingIncome <= 0) break;
+      
+      const bandStart = previousMax;
+      const bandWidth = band.max ? (band.max - previousMax) : Infinity;
+      const taxableInBand = Math.min(remainingIncome, bandWidth);
+      
+      const tax = taxableInBand * band.rate;
+      totalTax += tax;
+      
+      breakdown.push({
+        name: band.name,
+        rate: (band.rate * 100).toFixed(0) + '%',
+        amount: taxableInBand,
+        tax: tax,
+      });
+      
+      remainingIncome -= taxableInBand;
+      previousMax = band.max || bandWidth + previousMax;
+    }
+    
+    return { totalTax, breakdown };
+  };
+
+  /**
+   * Calculate National Insurance contributions
+   * Source: https://www.gov.uk/self-employed-national-insurance-rates
+   */
+  const calculateNationalInsurance = (profit) => {
+    let nicTotal = 0;
+    let nicItems = [];
+    
+    // Class 2 NIC: £3.50/week if profit over £6,725
+    if (profit >= NIC_RATES.class2.threshold) {
+      const class2 = NIC_RATES.class2.weekly * 52;
+      nicTotal += class2;
+      nicItems.push({ 
+        name: 'Class 2 NIC', 
+        desc: `£${NIC_RATES.class2.weekly}/week × 52 weeks`,
+        amount: class2 
+      });
+    }
+    
+    // Class 4 NIC on self-employment profit
+    if (profit > NIC_RATES.class4.lowerThreshold) {
+      const lowerAmount = Math.min(profit, NIC_RATES.class4.upperThreshold) - NIC_RATES.class4.lowerThreshold;
+      const basic = lowerAmount * NIC_RATES.class4.lowerRate;
+      nicTotal += basic;
+      nicItems.push({ 
+        name: 'Class 4 NIC (6%)', 
+        desc: `On profits £12,571 - £50,270`,
+        amount: basic 
+      });
+      
+      if (profit > NIC_RATES.class4.upperThreshold) {
+        const upper = (profit - NIC_RATES.class4.upperThreshold) * NIC_RATES.class4.upperRate;
+        nicTotal += upper;
+        nicItems.push({ 
+          name: 'Class 4 NIC (2%)', 
+          desc: `On profits over £50,270`,
+          amount: upper 
+        });
+      }
+    }
+    
+    return { nicTotal, nicItems };
+  };
+
+  /**
+   * Calculate Class 1 NIC already paid via PAYE on employment income
+   */
+  const calculateClass1NIC = (salary) => {
+    if (salary <= 12570) return 0;
+    
+    const mainAmount = Math.min(salary, 50270) - 12570;
+    const mainNIC = mainAmount * 0.08;
+    
+    const upperAmount = Math.max(0, salary - 50270);
+    const upperNIC = upperAmount * 0.02;
+    
+    return mainNIC + upperNIC;
+  };
+
   const calculateTax = () => {
     const salary = parseFloat(annualSalary) || 0;
     const profit = parseFloat(selfEmploymentProfit) || 0;
     const total = salary + profit;
     
     setTotalIncome(total);
-
-    const taxBands = taxRegion === 'scotland' ? TAX_BANDS_SCOTLAND : TAX_BANDS_UK;
     
-    // Calculate total tax on combined income
-    let remainingIncome = total;
-    let previousMax = 0;
-    let totalTaxAmount = 0;
-    let breakdown = [];
-    
-    // Personal Allowance
-    let personalAllowance = 12570;
-    
-    // If employed and income over £100K, reduce personal allowance
-    if (salary > 100000) {
-      const reduction = Math.floor((salary - 100000) / 2);
-      personalAllowance = Math.max(0, personalAllowance - reduction);
-    }
-    
-    // Calculate tax by band
-    taxBands.forEach((band) => {
-      if (remainingIncome <= 0) return;
-      
-      const bandWidth = band.max ? (band.max - previousMax) : Infinity;
-      const taxableInBand = Math.min(remainingIncome, bandWidth);
-      
-      let taxableAmount = taxableInBand;
-      
-      // Apply personal allowance to first band
-      if (band.rate === 0 && personalAllowance > 0) {
-        taxableAmount = Math.min(taxableInBand, personalAllowance);
-        remainingIncome = Math.max(0, remainingIncome - personalAllowance);
-        personalAllowance = 0;
-      }
-      
-      if (taxableAmount > 0) {
-        const tax = taxableAmount * band.rate;
-        totalTaxAmount += tax;
-        breakdown.push({
-          name: band.name,
-          rate: (band.rate * 100).toFixed(0) + '%',
-          amount: taxableAmount,
-          tax: tax,
-        });
-        remainingIncome -= taxableAmount;
-        previousMax = band.max || previousMax + bandWidth;
-      }
-    });
-
+    // Calculate total income tax on combined income
+    const { totalTax, breakdown } = calculateIncomeTax(total, taxRegion);
     setTaxBreakdown(breakdown);
-    setTotalTax(totalTaxAmount);
-
-    // Calculate National Insurance (self-employment only)
-    let nicTotal = 0;
-    let nicItems = [];
-
-    // Class 2 NIC: £3.45/week if profit over £6,725
-    if (profit >= NIC_RATES.class2.threshold) {
-      const class2 = NIC_RATES.class2.weekly * 52;
-      nicTotal += class2;
-      nicItems.push({ name: 'Class 2 NIC', desc: '£3.45 × 52 weeks', amount: class2 });
-    }
-
-    // Class 4 NIC on self-employment profit
-    if (profit > NIC_RATES.class4.lowerThreshold) {
-      const upperLimit = Math.min(profit, NIC_RATES.class4.upperThreshold);
-      const basic = (upperLimit - NIC_RATES.class4.lowerThreshold) * NIC_RATES.class4.lowerRate;
-      nicTotal += basic;
-      nicItems.push({ 
-        name: 'Class 4 NIC (Basic)', 
-        desc: '9% on £12,570 - £50,270', 
-        amount: basic 
-      });
-
-      if (profit > NIC_RATES.class4.upperThreshold) {
-        const higher = (profit - NIC_RATES.class4.upperThreshold) * NIC_RATES.class4.upperRate;
-        nicTotal += higher;
-        nicItems.push({ 
-          name: 'Class 4 NIC (Higher)', 
-          desc: '2% over £50,270', 
-          amount: higher 
-        });
-      }
-    }
-
+    setTotalTax(totalTax);
+    
+    // Calculate National Insurance on self-employment profit only
+    const { nicTotal, nicItems } = calculateNationalInsurance(profit);
     setNicBreakdown(nicItems);
     setTotalNic(nicTotal);
-
+    
     // Calculate what's already paid via PAYE
     let paid = 0;
     if (salary > 0) {
-      // Tax already paid on employment
-      const employedTax = calculateEmploymentTax(salary, personalAllowance);
+      // Income tax already paid on employment
+      const { totalTax: employedTax } = calculateIncomeTax(salary, taxRegion);
       paid += employedTax;
       
-      // Class 1 NIC already deducted (8% on £12,570 - £50,270, 2% above)
-      const class1Basic = Math.min(Math.max(salary - 12570, 0), 50270 - 12570) * 0.08;
-      const class1Higher = Math.max(0, salary - 50270) * 0.02;
-      paid += class1Basic + class1Higher;
+      // Class 1 NIC already deducted
+      paid += calculateClass1NIC(salary);
     }
     setAlreadyPaid(paid);
-
+    
     // Self Assessment = Total Tax + NIC - Already Paid
-    const selfAssessment = totalTaxAmount + nicTotal - paid;
+    const selfAssessment = totalTax + nicTotal - paid;
     setSelfAssessmentDue(Math.max(0, selfAssessment));
-
+    
     // Take home
-    setTakeHome(total - totalTaxAmount - nicTotal);
-  };
-
-  const calculateEmploymentTax = (salary, remainingPA) => {
-    let tax = 0;
-    let remaining = salary;
-    let pa = remainingPA;
-    
-    // Personal Allowance
-    if (remaining > 0 && pa > 0) {
-      const paUsed = Math.min(remaining, pa);
-      remaining -= paUsed;
-      pa -= paUsed;
-    }
-    
-    // Basic Rate
-    if (remaining > 0) {
-      const basic = Math.min(remaining, 50270 - (12570 - pa));
-      tax += basic * 0.20;
-      remaining -= basic;
-    }
-    
-    // Higher Rate
-    if (remaining > 0) {
-      tax += remaining * 0.40;
-    }
-    
-    return tax;
+    setTakeHome(total - totalTax - nicTotal);
   };
 
   const formatCurrency = (amount) => {
@@ -256,7 +259,9 @@ export default function TaxCalcScreen() {
 
         {/* Tax Breakdown */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Income Tax ({taxRegion === 'scotland' ? 'Scotland' : 'England/NI/Wales'})</Text>
+          <Text style={styles.sectionTitle}>
+            Income Tax ({taxRegion === 'scotland' ? 'Scotland' : 'England/NI/Wales'})
+          </Text>
           
           {taxBreakdown.map((item, index) => (
             <View key={index} style={styles.breakdownRow}>
@@ -281,19 +286,23 @@ export default function TaxCalcScreen() {
 
         {/* National Insurance */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>National Insurance</Text>
+          <Text style={styles.sectionTitle}>National Insurance (Self-Employment)</Text>
           
-          {nicBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <Text style={styles.breakdownName}>{item.name}</Text>
-                <Text style={styles.breakdownRate}>{item.desc}</Text>
+          {nicBreakdown.length === 0 ? (
+            <Text style={styles.noData}>No NIC due on this profit</Text>
+          ) : (
+            nicBreakdown.map((item, index) => (
+              <View key={index} style={styles.breakdownRow}>
+                <View style={styles.breakdownLeft}>
+                  <Text style={styles.breakdownName}>{item.name}</Text>
+                  <Text style={styles.breakdownRate}>{item.desc}</Text>
+                </View>
+                <Text style={[styles.breakdownTax, { color: '#EF4444' }]}>
+                  -{formatCurrency(item.amount)}
+                </Text>
               </View>
-              <Text style={[styles.breakdownTax, { color: '#EF4444' }]}>
-                -{formatCurrency(item.amount)}
-              </Text>
-            </View>
-          ))}
+            ))
+          )}
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total NIC:</Text>
@@ -306,7 +315,7 @@ export default function TaxCalcScreen() {
           <Text style={styles.sectionTitle}>Summary</Text>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Tax on All Income:</Text>
+            <Text style={styles.summaryLabel}>Total Tax + NIC:</Text>
             <Text style={styles.summaryValue}>{formatCurrency(totalTax + totalNic)}</Text>
           </View>
           
@@ -328,6 +337,20 @@ export default function TaxCalcScreen() {
               {formatCurrency(takeHome)}
             </Text>
           </View>
+        </View>
+
+        {/* Rates Info */}
+        <View style={[styles.card, styles.infoCard]}>
+          <Text style={styles.infoTitle}>2024/25 Tax Rates (HMRC)</Text>
+          <Text style={styles.infoText}>
+            PA: £12,570 | Basic: 20% | Higher: 40% | Additional: 45%
+          </Text>
+          <Text style={styles.infoText}>
+            Scotland: Starter 19% | Basic 20% | Intermediate 21% | Higher 42%
+          </Text>
+          <Text style={styles.infoText}>
+            NIC: Class 2 £3.50/week | Class 4 6% + 2%
+          </Text>
         </View>
 
       </ScrollView>
@@ -432,6 +455,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  noData: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    padding: 10,
+  },
   summaryCard: {
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
@@ -456,5 +485,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
+  },
+  infoCard: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
   },
 });
