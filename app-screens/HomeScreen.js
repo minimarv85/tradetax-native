@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
 import { AuthContext } from '../App';
 import { supabase } from '../app-lib/supabase';
+import { clearSession } from '../app-lib/auth';
 
 // UK Tax Bands 2024/25 (England, Wales, NI)
 const TAX_BANDS_UK = [
@@ -58,22 +59,17 @@ const calculateUKTax = (income, expenses, taxRegion, employmentStatus, annualSal
 };
 
 export default function HomeScreen({ navigation }) {
-  const { session, colors, toggleTheme } = useContext(AuthContext);
+  const { session, colors } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [menuVisible, setMenuVisible] = useState(false);
-  const [userSettings, setUserSettings] = useState({
-    taxRegion: 'england',
-    employmentStatus: 'self_employed',
-    annualSalary: 0,
-  });
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const [stats, setStats] = useState({
     totalIncome: 0,
     totalExpenses: 0,
     netProfit: 0,
     estimatedTax: 0,
   });
-  const [recentTransactions, setRecentTransactions] = useState([]);
 
   const fetchData = async () => {
     if (!session?.user?.id) return;
@@ -81,47 +77,29 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
     
     try {
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, tax_region, employment_status, annual_salary')
         .eq('id', session.user.id)
         .single();
       
-      if (profileError) {
-        console.log('Profile error:', profileError);
-      }
-      
-      // Set user name from full_name or email - prioritize full_name
+      // Set user name
       let name = 'User';
-      if (profile?.full_name && profile.full_name.trim() !== '') {
+      if (profile?.full_name?.trim()) {
         name = profile.full_name.split(' ')[0];
       } else if (session?.user?.email) {
         name = session.user.email.split('@')[0];
       }
       setUserName(name);
       
-      // Store user settings
-      if (profile) {
-        setUserSettings({
-          taxRegion: profile.tax_region || 'england',
-          employmentStatus: profile.employment_status || 'self_employed',
-          annualSalary: profile.annual_salary || 0,
-        });
-      }
-      
-      // Get transactions
-      const { data: transactions, error: transError } = await supabase
+      const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', session.user.id)
         .order('date', {ascending: false})
         .limit(10);
 
-      if (transError) {
-        console.log('Transactions error:', transError);
-        setRecentTransactions([]);
-      } else if (transactions) {
+      if (transactions) {
         let income = 0, expenses = 0;
         transactions.forEach(t => {
           if (t.type === 'income') income += parseFloat(t.amount);
@@ -129,8 +107,7 @@ export default function HomeScreen({ navigation }) {
         });
         
         const { profit, tax } = calculateUKTax(
-          income, 
-          expenses, 
+          income, expenses,
           profile?.tax_region || 'england',
           profile?.employment_status || 'self_employed',
           profile?.annual_salary || 0
@@ -145,7 +122,7 @@ export default function HomeScreen({ navigation }) {
         setRecentTransactions(transactions);
       }
     } catch (err) {
-      console.log('Fetch data error:', err);
+      console.log('Fetch error:', err);
     }
 
     setLoading(false);
@@ -153,9 +130,7 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     fetchData();
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchData();
-    });
+    const unsubscribe = navigation.addListener('focus', () => fetchData());
     return unsubscribe;
   }, [session]);
 
@@ -163,34 +138,41 @@ export default function HomeScreen({ navigation }) {
     return '£' + parseFloat(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Logout', 
+        style: 'destructive',
+        onPress: async () => {
+          await clearSession();
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }
+      },
+    ]);
+  };
+
   const menuItems = [
-    { label: 'Dashboard', onPress: () => { setMenuVisible(false); } },
-    { label: 'Profile Settings', onPress: () => { setMenuVisible(false); navigation.navigate('Settings'); } },
-    { label: 'Reports', onPress: () => { setMenuVisible(false); navigation.navigate('Reports'); } },
-    { label: 'Export Data', onPress: () => { setMenuVisible(false); } },
-    { label: 'Help & Support', onPress: () => { setMenuVisible(false); } },
-    { label: 'About', onPress: () => { setMenuVisible(false); } },
+    { label: '📊 Dashboard', onPress: () => setMenuVisible(false) },
+    { label: '👤 Profile Settings', onPress: () => { setMenuVisible(false); navigation.navigate('Settings'); } },
+    { label: '📈 Reports', onPress: () => { setMenuVisible(false); navigation.navigate('Reports'); } },
+    { label: '📤 Export Data', onPress: () => { setMenuVisible(false); navigation.navigate('Export'); } },
+    { label: '❓ Help & Support', onPress: () => { setMenuVisible(false); navigation.navigate('HelpSupport'); } },
+    { label: 'ℹ️ About', onPress: () => { setMenuVisible(false); navigation.navigate('About'); } },
   ];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header with Hamburger Menu */}
+      {/* Header - Clean with just hamburger */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity 
-          style={styles.menuIcon}
+          style={styles.menuButton}
           onPress={() => setMenuVisible(true)}
         >
           <Text style={styles.menuIconText}>☰</Text>
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>TradeTax</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.settingsIcon}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Text style={styles.settingsIconText}>⚙️</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>TradeTax</Text>
+        <View style={styles.placeholder} />
       </View>
 
       {/* Side Menu Modal */}
@@ -204,7 +186,7 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.modalOverlay}>
             <View style={[styles.menuContent, { backgroundColor: colors.card }]}>
               <View style={[styles.menuHeader, { backgroundColor: colors.primary }]}>
-                <Text style={styles.menuWelcome}>Welcome</Text>
+                <Text style={styles.menuWelcome}>Welcome back</Text>
                 <Text style={styles.menuName}>{userName}</Text>
               </View>
               
@@ -217,6 +199,13 @@ export default function HomeScreen({ navigation }) {
                   <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
+
+              <TouchableOpacity 
+                style={styles.logoutItem}
+                onPress={handleLogout}
+              >
+                <Text style={[styles.logoutText, { color: colors.danger }]}>Sign Out</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -224,18 +213,20 @@ export default function HomeScreen({ navigation }) {
 
       <ScrollView 
         style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchData} />
-        }
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} />}
       >
         <View style={styles.content}>
-          {/* Welcome Header */}
-          <View style={[styles.welcomeCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.welcomeText}>Welcome Back{userName && userName !== 'User' ? ', ' + userName : ''}!</Text>
-            <Text style={styles.subWelcomeText}>Here's your tax summary</Text>
+          {/* Welcome Header - Clean, no background colour */}
+          <View style={styles.welcomeSection}>
+            <Text style={[styles.welcomeText, { color: colors.text }]}>
+              Welcome{userName && userName !== 'User' ? ', ' + userName : ''}
+            </Text>
+            <Text style={[styles.subWelcomeText, { color: colors.secondary }]}>
+              Here's your tax summary
+            </Text>
           </View>
 
-          {/* Stats Grid */}
+          {/* Stats Grid - Clean cards */}
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statLabel, { color: colors.secondary }]}>Total Income</Text>
@@ -254,7 +245,7 @@ export default function HomeScreen({ navigation }) {
 
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statLabel, { color: colors.secondary }]}>Est. Tax</Text>
-              <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(stats.estimatedTax)}</Text>
+              <Text style={[styles.statValue, { color: '#F59E0B' }]}>{formatCurrency(stats.estimatedTax)}</Text>
             </View>
           </View>
 
@@ -279,14 +270,14 @@ export default function HomeScreen({ navigation }) {
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('Receipt')}
             >
-              <Text style={styles.actionText}>📷 Scan</Text>
+              <Text style={styles.actionText}>Scan</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+              style={[styles.actionButton, { backgroundColor: '#6366F1' }]}
               onPress={() => navigation.navigate('Invoice')}
             >
-              <Text style={styles.actionText}>📄 Invoice</Text>
+              <Text style={styles.actionText}>Invoice</Text>
             </TouchableOpacity>
           </View>
 
@@ -296,35 +287,35 @@ export default function HomeScreen({ navigation }) {
               style={[styles.actionButton, { backgroundColor: '#10B981' }]}
               onPress={() => navigation.navigate('VAT')}
             >
-              <Text style={styles.actionText}>💰 VAT</Text>
+              <Text style={styles.actionText}>VAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
               onPress={() => navigation.navigate('Mileage')}
             >
-              <Text style={styles.actionText}>🚗 Mileage</Text>
+              <Text style={styles.actionText}>Mileage</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: '#FACC15' }]}
+              style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
               onPress={() => navigation.navigate('TaxCalc')}
             >
-              <Text style={[styles.actionText, { color: '#000000' }]}>🧮 Tax Calc</Text>
+              <Text style={styles.actionText}>Tax Calc</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: '#EC4899' }]}
               onPress={() => navigation.navigate('Reports')}
             >
-              <Text style={styles.actionText}>📊 Reports</Text>
+              <Text style={styles.actionText}>Reports</Text>
             </TouchableOpacity>
           </View>
 
           {/* Recent Transactions */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
           {recentTransactions.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet. Add your first one!</Text>
+            <Text style={[styles.emptyText, { color: colors.secondary }]}>No transactions yet</Text>
           ) : (
             recentTransactions.map((item) => (
               <View key={item.id} style={[styles.transactionCard, { backgroundColor: colors.card }]}>
@@ -343,14 +334,6 @@ export default function HomeScreen({ navigation }) {
               </View>
             ))
           )}
-
-          {/* Logout */}
-          <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: colors.danger }]}
-            onPress={() => supabase.auth.signOut()}
-          >
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -366,11 +349,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 16,
   },
-  menuIcon: {
-    padding: 10,
+  menuButton: {
+    padding: 12,
   },
   menuIconText: {
-    fontSize: 28,
+    fontSize: 32,
     color: '#FFFFFF',
   },
   headerCenter: {
@@ -382,11 +365,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  settingsIcon: {
-    padding: 10,
-  },
-  settingsIconText: {
-    fontSize: 28,
+  placeholder: {
+    width: 56,
   },
   modalOverlay: {
     flex: 1,
@@ -394,30 +374,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   menuContent: {
-    width: '75%',
+    width: '80%',
     height: '100%',
     paddingTop: 60,
   },
   menuHeader: {
-    padding: 20,
+    padding: 24,
     marginBottom: 10,
   },
   menuWelcome: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   menuName: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginTop: 5,
+    marginTop: 4,
   },
   menuItem: {
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
     borderBottomWidth: 1,
   },
   menuItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  logoutItem: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    marginTop: 20,
+  },
+  logoutText: {
     fontSize: 16,
     fontWeight: '600',
   },
@@ -428,26 +419,22 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 0,
   },
-  welcomeCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+  welcomeSection: {
+    marginBottom: 20,
   },
   welcomeText: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   subWelcomeText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
+    fontSize: 15,
     marginTop: 4,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   statCard: {
     width: '48%',
@@ -458,10 +445,13 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 18,
@@ -478,13 +468,13 @@ const styles = StyleSheet.create({
   actionButton: {
     width: '48%',
     borderRadius: 12,
-    padding: 18,
+    padding: 20,
     alignItems: 'center',
     marginBottom: 12,
   },
   actionText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   transactionCard: {
@@ -499,7 +489,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transactionDesc: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
   },
@@ -513,18 +503,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
-    padding: 20,
-  },
-  logoutButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  logoutText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    padding: 24,
   },
 });

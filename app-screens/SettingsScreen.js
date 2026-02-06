@@ -231,22 +231,15 @@ export default function SettingsScreen({ navigation }) {
         {/* Account Info */}
         <View style={[styles.card, { marginTop: 16 }]}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <Text style={[styles.label, { color: '#6B7280' }]}>Email</Text>
-          <Text style={[styles.value, { color: '#1F2937' }]}>{session?.user?.email}</Text>
-          
-          <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}
-            onPress={handleLogout}
-          >
-            <Text style={[styles.logoutButtonText, { color: '#EF4444' }]}>Logout</Text>
-          </TouchableOpacity>
+          <Text style={[styles.label, { color: colors.secondary }]}>Email</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{session?.user?.email}</Text>
         </View>
 
         {/* App Info */}
         <View style={[styles.card, { marginTop: 16, marginBottom: 40 }]}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={[styles.label, { color: '#6B7280' }]}>Version</Text>
-          <Text style={[styles.value, { color: '#1F2937' }]}>1.0.0</Text>
+          <Text style={[styles.label, { color: colors.secondary }]}>Version</Text>
+          <Text style={[styles.value, { color: colors.text }]}>1.0.0</Text>
         </View>
       </ScrollView>
     </View>
@@ -290,17 +283,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#1F2937',
   },
   label: {
     fontSize: 14,
@@ -395,20 +382,6 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Logout button
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    marginTop: 16,
-  },
-  logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },

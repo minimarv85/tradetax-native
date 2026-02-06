@@ -18,33 +18,36 @@ import MileageScreen from './app-screens/MileageScreen';
 import TaxCalcScreen from './app-screens/TaxCalcScreen';
 import ReportsScreen from './app-screens/ReportsScreen';
 import SettingsScreen from './app-screens/SettingsScreen';
+import HelpSupportScreen from './app-screens/HelpSupportScreen';
+import AboutScreen from './app-screens/AboutScreen';
+import ExportScreen from './app-screens/ExportScreen';
 
 const Stack = createStackNavigator();
 export const AuthContext = createContext(null);
 
-// Theme colors
+// Clean, polished colour scheme
 const lightTheme = {
   background: '#FFFFFF',
-  card: '#F3F4F6',
-  text: '#1F2937',
-  primary: '#3B82F6',
+  card: '#F5F5F5',
+  text: '#1A1A1A',
+  primary: '#2563EB',
   secondary: '#6B7280',
   accent: '#F59E0B',
-  success: '#10B981',
-  danger: '#EF4444',
-  border: '#E5E7EB',
+  success: '#059669',
+  danger: '#DC2626',
+  border: '#E5E5E5',
 };
 
 const darkTheme = {
-  background: '#111827',
-  card: '#1F2937',
-  text: '#F9FAFB',
+  background: '#0A0A0A',
+  card: '#1A1A1A',
+  text: '#FFFFFF',
   primary: '#3B82F6',
   secondary: '#9CA3AF',
   accent: '#FACC15',
   success: '#10B981',
   danger: '#EF4444',
-  border: '#374151',
+  border: '#262626',
 };
 
 export default function App() {
@@ -53,18 +56,15 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
-    // Get theme preference
     SecureStore.getItemAsync('theme').then(savedTheme => {
       if (savedTheme) setTheme(savedTheme);
     });
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -84,7 +84,7 @@ export default function App() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Loading TradeTax...</Text>
+        <Text style={[styles.loadingText, { color: colors.text }]}>TradeTax</Text>
       </View>
     );
   }
@@ -107,7 +107,7 @@ export default function App() {
             </>
           ) : (
             <>
-              <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'TradeTax' }} />
+              <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'TradeTax', headerShown: false }} />
               <Stack.Screen name="Income" component={IncomeScreen} options={{ title: 'Income' }} />
               <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
               <Stack.Screen name="Receipt" component={ReceiptScannerScreen} options={{ title: 'Receipt Scanner' }} />
@@ -117,6 +117,9 @@ export default function App() {
               <Stack.Screen name="TaxCalc" component={TaxCalcScreen} options={{ title: 'Tax Calculator' }} />
               <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
               <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+              <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help & Support' }} />
+              <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
+              <Stack.Screen name="Export" component={ExportScreen} options={{ title: 'Export Data' }} />
             </>
           )}
         </Stack.Navigator>
@@ -134,5 +137,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 20,
     fontSize: 16,
+    fontWeight: '600',
   },
 });
