@@ -26,7 +26,8 @@ export default function ReceiptScannerScreen({ navigation }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      // Check if result has assets array
+      if (result && result.assets && Array.isArray(result.assets) && result.assets.length > 0) {
         setPhotoUri(result.assets[0].uri);
       }
     } catch (error) {
