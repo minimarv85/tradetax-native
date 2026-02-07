@@ -105,12 +105,14 @@ export default function HomeScreen({ navigation }) {
           else expenses += parseFloat(t.amount);
         });
         
-        // Add employed salary to total income if employed
+        const netProfit = income - expenses;
+        
+        // Add employed salary separately for display
         const employedSalary = (profile?.employment_status === 'employed_self' || profile?.employment_status === 'employed')
           ? parseFloat(profile?.annual_salary || 0)
           : 0;
         
-        const totalIncomeWithSalary = income + employedSalary;
+        const totalIncomeAllSources = income + employedSalary;
         
         const { profit, tax } = calculateUKTax(
           income, expenses,
@@ -120,7 +122,9 @@ export default function HomeScreen({ navigation }) {
         );
         
         setStats({
-          totalIncome: totalIncomeWithSalary,
+          totalIncome: income,
+          employedSalary: employedSalary,
+          totalIncomeAllSources: totalIncomeAllSources,
           totalExpenses: expenses,
           netProfit: profit,
           estimatedTax: tax,
@@ -241,20 +245,9 @@ export default function HomeScreen({ navigation }) {
       <ScrollView 
         style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FAFAFA' }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} />}
-      >
-        <View style={styles.content}>
-          <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeText, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
-              Hi{userName && userName !== 'User' ? ', ' + userName : ''}
-            </Text>
-            <Text style={[styles.subWelcomeText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-              Here's your tax summary
-            </Text>
-          </View>
-
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Total Income{(profile?.employment_status === 'employed_self' || profile?.employment_status === 'employed') ? ' *' : ''}</Text>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Self-Employment Income</Text>
               <Text style={[styles.statValue, { color: '#059669' }]}>{formatCurrency(stats.totalIncome)}</Text>
             </View>
             
@@ -273,18 +266,6 @@ export default function HomeScreen({ navigation }) {
               <Text style={[styles.statValue, { color: '#FACC15' }]}>{formatCurrency(stats.estimatedTax)}</Text>
             </View>
           </View>
-
-          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>Quick Actions</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
-              onPress={() => navigation.navigate('Income')}
-            >
-              <Text style={styles.actionText}>+ Income</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: quickActionBg }]}
               onPress={() => navigation.navigate('Expenses')}
             >
               <Text style={styles.actionText}>+ Expense</Text>
