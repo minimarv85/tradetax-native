@@ -105,6 +105,13 @@ export default function HomeScreen({ navigation }) {
           else expenses += parseFloat(t.amount);
         });
         
+        // Add employed salary to total income if employed
+        const employedSalary = (profile?.employment_status === 'employed_self' || profile?.employment_status === 'employed')
+          ? parseFloat(profile?.annual_salary || 0)
+          : 0;
+        
+        const totalIncomeWithSalary = income + employedSalary;
+        
         const { profit, tax } = calculateUKTax(
           income, expenses,
           profile?.tax_region || 'england',
@@ -113,7 +120,7 @@ export default function HomeScreen({ navigation }) {
         );
         
         setStats({
-          totalIncome: income,
+          totalIncome: totalIncomeWithSalary,
           totalExpenses: expenses,
           netProfit: profit,
           estimatedTax: tax,
@@ -247,7 +254,7 @@ export default function HomeScreen({ navigation }) {
 
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Total Income</Text>
+              <Text style={[styles.statLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>Total Income{(profile?.employment_status === 'employed_self' || profile?.employment_status === 'employed') ? ' *' : ''}</Text>
               <Text style={[styles.statValue, { color: '#059669' }]}>{formatCurrency(stats.totalIncome)}</Text>
             </View>
             
